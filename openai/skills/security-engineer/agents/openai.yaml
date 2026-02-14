@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Engineer"
+  short_description: "Guided threat modeling and security control planning"
+  default_prompt: "Use $security-engineer to build a production-ready security plan with threat modeling, control selection, validation gates, and residual risk decisions."
