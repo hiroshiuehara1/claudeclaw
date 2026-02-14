@@ -70,6 +70,9 @@ Use these prompts to verify boundary behavior across skills.
 | "Plan CDC ingestion and schema evolution for data platform." | `data-engineer` | Data lifecycle architecture focus |
 | "Build release regression strategy and defect triage workflow." | `qa-engineer` | General QA process focus |
 | "Threat model IAM and define security controls." | `security-engineer` | Security threat/control ownership |
+| "Define SLO paging policy and incident command workflow." | `sre-engineer` | Reliability operations ownership |
+| "Design CI/CD promotion controls and IaC governance checks." | `devops-platform-engineer` | Platform delivery mechanics ownership |
+| "Define model registry promotion and drift retraining policy." | `mlops-engineer` | Model lifecycle operations ownership |
 | "Run a mock system design interview for messaging app." | `system-design-interview` | Interview framing |
 
 Routing tie-breaker:
@@ -78,4 +81,7 @@ Routing tie-breaker:
 - If the prompt centers on data pipelines/contracts/backfills, prefer `data-engineer`.
 - If the prompt centers on broad test process and release QA mechanics, prefer `qa-engineer`.
 - If the prompt centers on threat modeling and security controls, prefer `security-engineer`.
+- If the prompt centers on on-call reliability operations (paging, incident command, postmortems), prefer `sre-engineer`.
+- If the prompt centers on CI/CD, IaC, environment promotion, and release platform mechanics, prefer `devops-platform-engineer`.
+- If the prompt centers on model lifecycle operations (training/eval/registry/serving/drift/retraining), prefer `mlops-engineer`.
 - If the prompt asks for interview coaching (`interview`, `mock`, `grade`), prefer `system-design-interview`.

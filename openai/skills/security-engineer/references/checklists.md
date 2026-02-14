@@ -72,10 +72,18 @@ Use these prompts to verify boundary behavior across skills.
 | "Design service capacity, SLO, and failover architecture." | `systems-engineer` | Non-security architecture focus |
 | "Plan CDC ingestion and schema evolution for analytics tables." | `data-engineer` | Data lifecycle architecture focus |
 | "Build regression strategy and QA release criteria." | `qa-engineer` | General QA strategy focus |
+| "Design RAG runtime guardrails and model routing policy." | `ai-engineer` | AI runtime behavior ownership |
+| "Define on-call paging and incident command playbook." | `sre-engineer` | Reliability operations ownership |
+| "Design CI/CD promotion and IaC policy enforcement flow." | `devops-platform-engineer` | Platform delivery mechanics ownership |
+| "Define model registry promotion and drift retraining controls." | `mlops-engineer` | Model lifecycle operations ownership |
 
 Routing tie-breaker:
 - If the prompt centers on threat/risk/control/security gates, prefer `security-engineer`.
 - If the prompt centers on non-security architecture/SLO/failover decisions, prefer `systems-engineer`.
 - If the prompt centers on data pipelines/models/contracts/backfills, prefer `data-engineer`.
 - If the prompt centers on general test strategy and release QA workflow, prefer `qa-engineer`.
+- If the prompt centers on LLM runtime behavior (RAG, prompts, guardrails, model routing), prefer `ai-engineer`.
+- If the prompt centers on on-call reliability execution (paging, incident command, postmortems), prefer `sre-engineer`.
+- If the prompt centers on CI/CD, IaC, environment promotion, or config/secrets delivery mechanics, prefer `devops-platform-engineer`.
+- If the prompt centers on model lifecycle operations (training/eval/registry/serving/drift/retraining), prefer `mlops-engineer`.
 - If the prompt asks for interview coaching (`interview`, `mock`, `grade`), prefer `system-design-interview`.

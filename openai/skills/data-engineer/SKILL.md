@@ -70,6 +70,10 @@ This skill is not interview coaching. For interview prep or mock interview frami
 This skill is not general service architecture planning. For broader non-data architecture, SLO, and platform reliability topics, prefer `systems-engineer`.
 This skill is not general QA process ownership. For regression strategy and defect workflow outside data-specific verification, prefer `qa-engineer`.
 This skill is not threat modeling or security control design. For security-first control/risk planning, prefer `security-engineer`.
+This skill is not on-call reliability operations ownership. For paging strategy, incident command, and postmortem loops, prefer `sre-engineer`.
+This skill is not CI/CD and IaC platform delivery ownership. For environment promotion mechanics and platform release controls, prefer `devops-platform-engineer`.
+This skill is not model lifecycle operations ownership. For training/eval pipelines, registry promotion, and drift/retraining policy, prefer `mlops-engineer`.
+This skill is not LLM runtime behavior ownership. For prompt/runtime architecture, retrieval quality, and AI guardrails, prefer `ai-engineer`.
 
 ## Quality Bar
 

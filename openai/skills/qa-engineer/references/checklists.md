@@ -71,9 +71,19 @@ Use these prompts to verify boundary behavior across skills.
 | "Run a mock system design interview question." | `system-design-interview` | Interview framing |
 | "Design service failover architecture and SLO model." | `systems-engineer` | Broad service architecture focus |
 | "Plan CDC ingestion, dbt contracts, and data backfill." | `data-engineer` | Data lifecycle architecture focus |
+| "Threat model service controls and security release gate policy." | `security-engineer` | Security control ownership |
+| "Design RAG guardrails and model eval thresholds for assistant." | `ai-engineer` | AI runtime quality ownership |
+| "Define paging policy and incident command for Sev1 response." | `sre-engineer` | SRE operations ownership |
+| "Design CI/CD promotion gates and IaC governance workflow." | `devops-platform-engineer` | Platform delivery mechanics ownership |
+| "Define model registry promotion and drift-retraining controls." | `mlops-engineer` | Model lifecycle operations ownership |
 
 Routing tie-breaker:
 - If the prompt centers on verification, coverage, defects, or release test gates, prefer `qa-engineer`.
 - If the prompt centers on broad system architecture and service reliability design, prefer `systems-engineer`.
 - If the prompt centers on data pipelines/models/contracts/backfills, prefer `data-engineer`.
+- If the prompt centers on threat/risk/control security decisions, prefer `security-engineer`.
+- If the prompt centers on LLM runtime behavior (RAG, guardrails, model routing, eval gates), prefer `ai-engineer`.
+- If the prompt centers on on-call reliability operations (paging, incident command, postmortems), prefer `sre-engineer`.
+- If the prompt centers on CI/CD, IaC, environment promotion, or release platform mechanics, prefer `devops-platform-engineer`.
+- If the prompt centers on model lifecycle operations (training/eval/registry/serving/drift/retraining), prefer `mlops-engineer`.
 - If the prompt asks for interview coaching (`interview`, `mock`, `grade`), prefer `system-design-interview`.

@@ -67,6 +67,11 @@ Use `references/templates.md` for response skeletons.
 This skill is not interview coaching. For interview prep or mock interview framing, prefer `system-design-interview`.
 This skill is not broad service architecture planning. For platform/service architecture and SLO architecture decisions, prefer `systems-engineer`.
 This skill is not data-pipeline architecture planning. For warehouse/dbt/CDC data lifecycle design, prefer `data-engineer`.
+This skill is not threat-model/control ownership. For security-first control and risk strategy, prefer `security-engineer`.
+This skill is not LLM runtime delivery ownership. For RAG/prompt/guardrail/model-routing decisions, prefer `ai-engineer`.
+This skill is not on-call reliability operations ownership. For SLO policy operations, paging, and incident command loops, prefer `sre-engineer`.
+This skill is not CI/CD and IaC platform delivery ownership. For promotion mechanics and platform release controls, prefer `devops-platform-engineer`.
+This skill is not model lifecycle operations ownership. For training/eval/registry/serving/drift lifecycle plans, prefer `mlops-engineer`.
 
 ## Quality Bar
 

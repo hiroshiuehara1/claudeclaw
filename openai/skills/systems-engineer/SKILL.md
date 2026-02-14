@@ -61,10 +61,16 @@ Support one-shot mode when requested:
 
 Use `references/templates.md` for response skeletons.
 
-## Boundary From system-design-interview
+## Boundary From Other Skills
 
-This skill is not interview coaching. It is production engineering guidance for real system decisions.
-When the user asks for mock interview behavior or interview grading, prefer `system-design-interview`.
+This skill is not interview coaching. For interview prep or mock interview framing, prefer `system-design-interview`.
+This skill is not data lifecycle design ownership. For pipeline/model contracts, streaming operations, and backfill strategy, prefer `data-engineer`.
+This skill is not general QA process ownership. For coverage strategy and defect workflow, prefer `qa-engineer`.
+This skill is not security control-first ownership. For threat modeling and security control strategy, prefer `security-engineer`.
+This skill is not LLM runtime delivery ownership. For retrieval, guardrails, model routing, and AI eval gates, prefer `ai-engineer`.
+This skill is not SLO/on-call operations ownership. For paging strategy, incident command, and postmortem loops, prefer `sre-engineer`.
+This skill is not CI/CD and IaC platform delivery ownership. For promotion mechanics, pipeline governance, and platform release controls, prefer `devops-platform-engineer`.
+This skill is not model lifecycle operations ownership. For training/eval pipelines, registry promotion, and drift/retraining policy, prefer `mlops-engineer`.
 
 ## Quality Bar
 

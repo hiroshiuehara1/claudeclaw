@@ -70,21 +70,28 @@ Run quick checks on major choices:
 
 ## Trigger Routing QA
 
-Use these prompts to verify boundary behavior against `system-design-interview`.
+Use these prompts to verify boundary behavior across skills.
 
 | Prompt | Expected primary skill | Key signal |
 |---|---|---|
-| "Run a mock system design interview for designing Dropbox." | `system-design-interview` | Explicit mock interview request |
-| "Give me an interview-style answer for designing Twitter timelines." | `system-design-interview` | Interview-style framing |
-| "Act as interviewer and grade my design tradeoffs." | `system-design-interview` | Interviewer and grading behavior |
-| "Help me prepare for a system design round at Meta." | `system-design-interview` | Interview prep context |
-| "Review this service design for production readiness and SLO risk." | `systems-engineer` | Production readiness and SLO |
-| "Create an implementation-ready design spec with rollout and rollback plan." | `systems-engineer` | Design spec and rollout safety |
-| "Plan a zero-downtime migration with canary release and backout criteria." | `systems-engineer` | Migration and release operations |
-| "Evaluate reliability, operability, and incident blast radius for this architecture." | `systems-engineer` | Operability and blast radius |
-| "I need SLI/SLO targets, error budget policy, and validation gates for launch." | `systems-engineer` | SLI/SLO and release gates |
-| "Design a scalable chat app." | `system-design-interview` by default | Generic design prompt without production constraints |
+| "Review this service design for production readiness and SLO risk." | `systems-engineer` | Production architecture and reliability design |
+| "Create an implementation-ready system design spec with rollout and migration plan." | `systems-engineer` | Architecture-to-delivery design scope |
+| "Run a mock system design interview for designing Dropbox." | `system-design-interview` | Interview framing and coaching |
+| "Plan streaming schema evolution and replay-safe backfill." | `data-engineer` | Data lifecycle ownership |
+| "Build regression strategy and release quality gates for product launch." | `qa-engineer` | QA process ownership |
+| "Threat model auth boundaries and define control strategy." | `security-engineer` | Security control-first ownership |
+| "Design RAG guardrails and model routing policy for assistant." | `ai-engineer` | LLM runtime delivery ownership |
+| "Define SLO paging policy and incident command workflow." | `sre-engineer` | SRE day-2 operations ownership |
+| "Design CI/CD promotion and IaC governance model." | `devops-platform-engineer` | Platform delivery mechanics ownership |
+| "Define model registry promotion gates and drift-retraining policy." | `mlops-engineer` | Model lifecycle operations ownership |
 
 Routing tie-breaker:
 - If a prompt includes interview coaching language (`interview`, `mock`, `grade`, `round`), prefer `system-design-interview`.
-- If a prompt includes production operations language (`SLO`, `rollout`, `rollback`, `migration`, `operability`, `production readiness`), prefer `systems-engineer`.
+- If a prompt centers on data pipelines/contracts/backfills/streaming semantics, prefer `data-engineer`.
+- If a prompt centers on broad test strategy and defect workflow, prefer `qa-engineer`.
+- If a prompt centers on threat/risk/control security decisions, prefer `security-engineer`.
+- If a prompt centers on LLM runtime quality (RAG, guardrails, model routing, eval gates), prefer `ai-engineer`.
+- If a prompt centers on on-call reliability operations (paging, incident command, postmortems), prefer `sre-engineer`.
+- If a prompt centers on CI/CD, IaC, promotion pipelines, and config/secrets delivery mechanics, prefer `devops-platform-engineer`.
+- If a prompt centers on model training/eval/registry/serving/drift/retraining lifecycle, prefer `mlops-engineer`.
+- Otherwise, for production system architecture and dependency design, prefer `systems-engineer`.

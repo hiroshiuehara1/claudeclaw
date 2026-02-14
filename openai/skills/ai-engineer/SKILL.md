@@ -69,6 +69,9 @@ This skill is not broad non-AI service architecture planning. For platform/servi
 This skill is not data pipeline architecture planning. For warehouse/dbt/CDC lifecycle design, prefer `data-engineer`.
 This skill is not general QA process ownership. For broad regression strategy and defect workflow outside AI behavior quality, prefer `qa-engineer`.
 This skill is not broad threat-model/control ownership. For general security architecture and threat-control strategy, prefer `security-engineer`.
+This skill is not on-call reliability operations ownership. For SLO operations, paging strategy, incident command, and postmortem loops, prefer `sre-engineer`.
+This skill is not CI/CD and IaC platform delivery ownership. For delivery pipeline mechanics, environment promotion, and platform release controls, prefer `devops-platform-engineer`.
+This skill is not model lifecycle operations ownership. For training/eval pipelines, model registry promotion, serving rollout, and drift/retraining policy, prefer `mlops-engineer`.
 
 ## Quality Bar
 

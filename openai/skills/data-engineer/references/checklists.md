@@ -79,10 +79,18 @@ Use these prompts to verify boundary behavior across skills.
 | "Review service architecture SLO and multi-region failover strategy." | `systems-engineer` | Broad service reliability architecture |
 | "Build regression strategy and QA release criteria." | `qa-engineer` | General QA process focus |
 | "Threat model this auth service and define controls." | `security-engineer` | Security control/risk focus |
+| "Design on-call paging and incident command policy for production reliability." | `sre-engineer` | SRE operations ownership |
+| "Design CI/CD promotion flow and IaC governance for deployments." | `devops-platform-engineer` | Platform delivery mechanics ownership |
+| "Define model registry promotion gates and drift-triggered retraining policy." | `mlops-engineer` | Model lifecycle operations ownership |
+| "Design RAG retrieval quality and guardrail strategy for assistant." | `ai-engineer` | AI runtime delivery ownership |
 
 Routing tie-breaker:
 - If the prompt includes data lifecycle language (`streaming`, `event-time`, `watermark`, `lineage`, `schema evolution`, `backfill`, `CDC`), prefer `data-engineer`.
 - If the prompt centers on non-data service architecture and SLO/failover strategy, prefer `systems-engineer`.
 - If the prompt centers on general regression/test workflow, prefer `qa-engineer`.
 - If the prompt centers on threat/risk/control/security gates, prefer `security-engineer`.
+- If the prompt centers on on-call reliability operations (paging, incident command, postmortems), prefer `sre-engineer`.
+- If the prompt centers on CI/CD, IaC, environment promotion, or config/secrets delivery mechanics, prefer `devops-platform-engineer`.
+- If the prompt centers on model training/eval/registry/serving/drift lifecycle, prefer `mlops-engineer`.
+- If the prompt centers on LLM runtime behavior, retrieval quality, guardrails, or model routing, prefer `ai-engineer`.
 - If the prompt includes interview coaching language (`interview`, `mock`, `grade`, `round`), prefer `system-design-interview`.
