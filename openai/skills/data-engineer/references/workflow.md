@@ -3,167 +3,184 @@
 ## Sequence
 
 Run the production data engineering flow in this order:
-1. Context and business metric gate
-2. Source inventory and freshness/SLA gate
-3. Volume, performance, and cost estimates
-4. Ingestion and orchestration design
-5. Transformation and model layering design
-6. Data contracts and schema evolution strategy
-7. Data quality and reconciliation strategy
-8. Lineage, observability, and operations
-9. Backfill, cutover, and rollback plan
-10. Validation and acceptance gates
-11. Final Data Plan Bundle
+1. Context, consumers, and latency goals gate
+2. Source inventory and event contract ownership gate
+3. Event semantics and freshness/SLA gate
+4. Volume, state, performance, and cost estimates
+5. Ingestion topology and orchestration design
+6. Processing and model layering design
+7. Data contracts and schema evolution strategy
+8. Data quality and reconciliation strategy
+9. Streaming operations and observability plan
+10. Backfill, replay, cutover, and rollback plan
+11. Validation and acceptance gates
+12. Final Data Plan Bundle
 
 Do not reorder unless the user explicitly requests a different sequence.
 
-## Stage 1: Context and Business Metric Gate
+## Stage 1: Context, Consumers, and Latency Goals Gate
 
 ### Entry criteria
-- User asks for pipeline/model design, data reliability, or data workflow planning.
+- User asks for data pipeline/model design, real-time analytics planning, or data reliability guidance.
 
 ### Exit criteria
 - Problem statement is explicit.
 - Primary consumers and decisions are explicit.
 - In-scope and out-of-scope boundaries are explicit.
+- Latency class target is explicit (for example sub-second, near-real-time, hourly).
 
-## Stage 2: Source Inventory and Freshness/SLA Gate
+## Stage 2: Source Inventory and Event Contract Ownership Gate
 
 ### Entry criteria
 - Context is defined.
 
 ### Exit criteria
-- Source systems and ownership are listed.
-- Arrival pattern and latency expectations are documented.
-- Freshness/SLA targets are documented.
+- Source systems and owners are listed.
+- Event/entity contracts and version owners are listed.
+- Mutation behavior and correction paths are documented.
 
-## Stage 3: Volume, Performance, and Cost Estimates
+## Stage 3: Event Semantics and Freshness/SLA Gate
 
 ### Entry criteria
-- Source inventory is known or assumed.
+- Source and contract inventory are available.
 
 ### Exit criteria
-- Daily and peak volume estimates are provided.
-- Runtime and resource envelope estimates are provided.
-- Storage growth and retention footprint are provided.
+- Event-time vs processing-time semantics are explicit.
+- Ordering guarantees and duplication assumptions are explicit.
+- Lateness profile and watermark strategy are explicit.
+- Freshness and latency SLO targets are explicit.
+
+Use `event-semantics.md`.
+
+## Stage 4: Volume, State, Performance, and Cost Estimates
+
+### Entry criteria
+- Semantics and SLO baseline are known or assumed.
+
+### Exit criteria
+- Throughput and peak burst estimates are provided.
+- State growth and retention estimates are provided.
+- Backlog recovery and lag drain feasibility are provided.
 - Cost drivers and headroom are documented.
 
 Use `capacity-formulas.md`.
 
-## Stage 4: Ingestion and Orchestration Design
+## Stage 5: Ingestion Topology and Orchestration Design
 
 ### Entry criteria
-- Volume and SLA baseline exists.
+- Scale and SLO baseline exists.
 
 ### Exit criteria
-- Ingestion approach chosen (batch/stream/CDC/snapshot).
-- Orchestration DAG and dependencies identified.
-- Retry/backoff/concurrency policies defined.
+- Ingestion mode chosen (stream, micro-batch, batch, CDC).
+- Topology and dependency boundaries identified.
+- Retry/backoff/checkpoint/concurrency policies defined.
 
 Use `orchestration-patterns.md`.
 
-## Stage 5: Transformation and Model Layering Design
+## Stage 6: Processing and Model Layering Design
 
 ### Entry criteria
-- Ingestion plan exists.
+- Ingestion topology exists.
 
 ### Exit criteria
-- Layering model defined (raw/staging/intermediate/marts).
-- Incremental/full-refresh strategy defined.
-- Ownership and change policy defined.
+- Layering model is defined (raw/staging/intermediate/marts/serving).
+- Stateful processing boundaries are explicit.
+- Incremental/recomputation strategy is explicit.
 
-## Stage 6: Data Contracts and Schema Evolution Strategy
+## Stage 7: Data Contracts and Schema Evolution Strategy
 
 ### Entry criteria
 - Model layers and consumers are known.
 
 ### Exit criteria
-- Data contracts are documented for critical datasets.
+- Contracts for critical datasets/events are documented.
 - Compatibility policy and versioning approach are defined.
-- Breaking-change mitigation and consumer migration plan are defined.
+- Breaking-change mitigation and migration plan are defined.
 
 Use `schema-evolution.md`.
 
-## Stage 7: Data Quality and Reconciliation Strategy
+## Stage 8: Data Quality and Reconciliation Strategy
 
 ### Entry criteria
 - Contracts and schema policy are defined.
 
 ### Exit criteria
-- Test suite includes freshness, null, uniqueness, referential, accepted values.
-- Reconciliation strategy is defined for key metrics.
-- Escalation path and severity mapping are defined.
+- Test suite includes freshness, null, uniqueness, referential, domain checks.
+- Streaming-specific checks include duplicate and out-of-order handling.
+- Reconciliation and drift escalation paths are defined.
 
 Use `data-quality.md`.
 
-## Stage 8: Lineage, Observability, and Operations
+## Stage 9: Streaming Operations and Observability Plan
 
 ### Entry criteria
-- Data quality strategy exists.
+- Data quality and pipeline design are defined.
 
 ### Exit criteria
-- Lineage expectations are defined for critical assets.
-- Operational telemetry (run success, latency, data drift) is defined.
-- Ownership and on-call path are documented.
+- Lag, watermark lag, error rate, and throughput telemetry are defined.
+- Checkpoint/state health and skew telemetry are defined.
+- On-call ownership and response thresholds are documented.
 
-## Stage 9: Backfill, Cutover, and Rollback Plan
+Use `streaming-ops.md`.
+
+## Stage 10: Backfill, Replay, Cutover, and Rollback Plan
 
 ### Entry criteria
-- Pipeline/model design is stable.
+- Pipeline and operations model is stable.
 
 ### Exit criteria
-- Backfill strategy is selected and runtime estimated.
-- Cutover sequence and acceptance checkpoints are defined.
+- Replay boundaries and idempotency strategy are explicit.
+- Cutover sequence and acceptance checkpoints are explicit.
 - Rollback triggers and fallback process are explicit.
 
 Use `backfill-cutover.md`.
 
-## Stage 10: Validation and Acceptance Gates
+## Stage 11: Validation and Acceptance Gates
 
 ### Entry criteria
 - Cutover and rollback plan is defined.
 
 ### Exit criteria
-- Validation plan covers data correctness, freshness, and performance.
+- Validation covers correctness, freshness, latency, and recovery behavior.
 - Release gates and success criteria are explicit.
-- Post-launch monitoring window is defined.
+- Post-launch monitoring window and incident thresholds are explicit.
 
-## Stage 11: Final Data Plan Bundle
+## Stage 12: Final Data Plan Bundle
 
 ### Entry criteria
-- Stages 1 through 10 are complete.
+- Stages 1 through 11 are complete.
 
 ### Exit criteria
 - Final response includes all required sections from `templates.md` and passes `checklists.md`.
 
-## Decision Table: Ingestion
+## Decision Table: Ingestion Mode
 
 | Signal | Default choice | Alternative | Tradeoff focus |
 |---|---|---|---|
-| Source emits change stream | CDC | Periodic snapshot | Freshness vs operational complexity |
-| Low update frequency, simple extract | Batch snapshot | CDC | Simplicity vs staleness |
-| Near-real-time consumer needs | Streaming | Micro-batch | Latency vs cost/control |
+| Sub-minute latency with continuous events | Streaming | Micro-batch | Latency vs operational overhead |
+| Near-real-time with moderate variability | Micro-batch | Streaming | Simplicity vs latency |
+| Cost-sensitive low-frequency updates | Batch/CDC snapshot | Streaming | Cost efficiency vs freshness |
 
-## Decision Table: Transform Strategy
-
-| Signal | Default choice | Alternative | Tradeoff focus |
-|---|---|---|---|
-| Large mutable tables | Incremental + merge | Full refresh | Runtime/cost vs logic complexity |
-| Small stable dimensions | Full refresh | Incremental | Simplicity vs compute overhead |
-| Late-arriving facts | Watermark + reprocessing window | Strict append-only | Correctness vs simplicity |
-
-## Decision Table: Partitioning and Storage
+## Decision Table: Delivery and Processing Guarantees
 
 | Signal | Default choice | Alternative | Tradeoff focus |
 |---|---|---|---|
-| Time-series queries dominate | Date partitioning | Hash partitioning | Scan pruning vs skew risk |
-| High-cardinality tenant access | Tenant + date composite | Date only | Isolation vs small-file risk |
-| Frequent point lookups | Clustering/sort keys | No clustering | Performance vs maintenance cost |
+| Financial or strict correctness use case | Idempotent exactly-once effect | At-least-once + dedupe | Correctness rigor vs implementation complexity |
+| High throughput and tolerant consumers | At-least-once + dedupe windows | Exactly-once semantics | Throughput/cost vs strict guarantees |
+| Unstable producer behavior | Contract guardrails + quarantine | Fail-fast reject | Availability vs strictness |
 
-## Decision Table: Orchestration
+## Decision Table: Watermark and Lateness
 
 | Signal | Default choice | Alternative | Tradeoff focus |
 |---|---|---|---|
-| Strict task dependencies | DAG scheduler | Event-driven chains | Predictability vs flexibility |
-| Bursty failures | Exponential backoff retries | Fixed retries | Recovery rate vs prolonged lag |
-| Shared cluster constraints | Concurrency caps + pools | Unlimited parallelism | Stability vs throughput |
+| Predictable late arrival profile | Fixed watermark lag | Dynamic watermarking | Simplicity vs adaptivity |
+| Highly bursty/irregular late events | Adaptive watermark + corrections | Large fixed lag | Timeliness vs correction overhead |
+| Critical low-latency output | Tight watermark + correction stream | Wide watermark | Latency vs completeness |
+
+## Decision Table: State and Checkpointing
+
+| Signal | Default choice | Alternative | Tradeoff focus |
+|---|---|---|---|
+| High-cardinality keys with long windows | Externalized state + TTL policy | In-memory local state | Durability vs speed |
+| Strict recovery requirements | Frequent checkpoints | Sparse checkpoints | Recovery speed vs runtime overhead |
+| Partition skew risk | Repartition + hot-key mitigation | Static partitioning | Stability vs implementation effort |

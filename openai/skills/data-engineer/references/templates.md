@@ -7,11 +7,11 @@ Use these templates to keep output consistent and implementation-ready.
 ```markdown
 Before proposing the plan, I need to lock key data constraints:
 1. [Business decision or metric this pipeline supports]
-2. [Source systems, ownership, and mutation behavior]
-3. [Freshness/SLA and acceptable lag]
-4. [Volume profile and growth expectations]
-5. [Quality expectations and reconciliation requirements]
-6. [Schema change expectations and consumer compatibility needs]
+2. [Source systems, event ownership, and mutation behavior]
+3. [Event-time vs processing-time expectations]
+4. [Freshness/latency SLO and acceptable lag]
+5. [Lateness, out-of-order, and duplicate behavior]
+6. [Schema change and consumer compatibility needs]
 7. [Operational constraints: timeline, team, budget, compliance]
 
 If any input is unknown, I will proceed with explicit assumptions.
@@ -22,19 +22,19 @@ If any input is unknown, I will proceed with explicit assumptions.
 ```markdown
 Assumptions:
 1. [Business and consumer assumptions]
-2. [Source and ingestion assumptions]
-3. [Freshness and performance assumptions]
+2. [Source and event contract assumptions]
+3. [Latency, event semantics, and correctness assumptions]
 4. [Schema/contract assumptions]
 5. [Operational and compliance assumptions]
 ```
 
-## Template C: Data Flow Map
+## Template C: Source, Topology, and Data Flow Map
 
 ```markdown
 Data flow map:
-1. Source systems -> [ingestion pattern]
-2. Raw layer -> [storage pattern]
-3. Staging/intermediate models -> [transformation strategy]
+1. Source systems/events -> [ingestion pattern]
+2. Raw/landing -> [storage or stream topic policy]
+3. Processing layers -> [stateful/stateless strategy]
 4. Serving marts/data products -> [consumer interfaces]
 
 Critical dependencies:
@@ -42,46 +42,63 @@ Critical dependencies:
 - [Upstream dependency] -> [downstream impact]
 ```
 
-## Template D: Capacity, Performance, and Cost
+## Template D: Event Semantics and SLA Budget
 
 ```markdown
-Capacity/performance/cost estimates:
-- Daily records/events: [value]
-- Peak ingest rate: [value]
-- Average and peak processing throughput: [formula -> value]
-- Storage/day and retention footprint: [formula -> value]
-- Runtime envelope per pipeline: [value]
-- Primary cost drivers: [scan, compute, storage, egress]
-- Headroom target: [for example 2x]
+Event semantics:
+- Event-time field and ownership:
+- Ordering guarantee assumptions:
+- Duplicate/correction behavior:
+- Lateness profile and watermark strategy:
+
+Latency/freshness budget:
+- Source to ingest:
+- Ingest to process:
+- Process to serve:
+- End-to-end target and alert threshold:
 ```
 
-## Template E: Ingestion and Orchestration Plan
+## Template E: Capacity, State, Performance, and Cost
+
+```markdown
+Capacity/state/performance/cost estimates:
+- Daily records/events and peak ingress rate:
+- Average and peak processing throughput:
+- State size growth and retention footprint:
+- Consumer lag threshold and drain-time estimate:
+- Runtime envelope and checkpoint overhead:
+- Primary cost drivers: [stream compute, storage, scan, egress]
+- Headroom target:
+```
+
+## Template F: Ingestion and Orchestration Plan
 
 ```markdown
 Ingestion plan:
-- Pattern: [batch | CDC | stream]
+- Pattern: [stream | micro-batch | batch | CDC]
 - Update semantics: [append | upsert | delete handling]
+- Delivery guarantees: [at-least-once | effectively exactly-once]
 - Failure handling: [retry/backoff/dead-letter/quarantine]
 
 Orchestration plan:
-- DAG stages and dependencies:
-- Scheduling/event triggers:
+- Topology stages and dependencies:
+- Triggering/scheduling model:
 - Concurrency and resource limits:
-- SLA enforcement and alert points:
+- Checkpointing and recovery controls:
 ```
 
-## Template F: Model Contracts and Schema Evolution
+## Template G: Processing, Contracts, and Schema Evolution
 
 ```markdown
 Model layering:
 - Raw:
 - Staging:
 - Intermediate:
-- Marts:
+- Marts/Serving:
 
-Data contracts:
-- [Dataset]: [required fields, constraints, owner, consumers]
-- [Dataset]: [required fields, constraints, owner, consumers]
+Data/event contracts:
+- [Dataset/Event]: [required fields, constraints, owner, consumers]
+- [Dataset/Event]: [required fields, constraints, owner, consumers]
 
 Schema evolution policy:
 - Versioning strategy:
@@ -90,7 +107,7 @@ Schema evolution policy:
 - Consumer migration steps:
 ```
 
-## Template G: Data Quality and Reconciliation Plan
+## Template H: Data Quality and Reconciliation Plan
 
 ```markdown
 Data quality tests:
@@ -98,10 +115,11 @@ Data quality tests:
 - Null/uniqueness checks:
 - Referential integrity checks:
 - Accepted-value/domain checks:
+- Duplicate/out-of-order handling checks:
 
 Reconciliation:
-- Source vs warehouse row-count checks:
-- Metric-level reconciliation checks:
+- Source vs destination row/aggregate checks:
+- Windowed metric-level reconciliation checks:
 - Drift thresholds and escalation:
 
 Incident handling:
@@ -109,27 +127,28 @@ Incident handling:
 - Owner and escalation path:
 ```
 
-## Template H: Lineage, Observability, and Operations
+## Template I: Streaming Operations and Observability
 
 ```markdown
-Lineage and observability:
-- Critical asset lineage coverage:
-- Pipeline runtime/failure metrics:
-- Freshness and data quality dashboards:
+Operations and observability:
+- Lag and watermark lag metrics:
+- Throughput, error, and retry metrics:
+- Checkpoint/state health metrics:
+- Partition skew/hot-key metrics:
 - Alert policy and on-call ownership:
 
 Operational controls:
-- Reprocessing workflow:
+- Replay/reprocessing workflow:
 - Manual override/break-glass process:
-- Cost guardrails:
+- Cost guardrails and auto-scaling limits:
 ```
 
-## Template I: Backfill, Cutover, and Rollback
+## Template J: Backfill, Replay, Cutover, and Rollback
 
 ```markdown
-Backfill strategy:
-- Scope and window:
-- Replay pattern and idempotency:
+Backfill/replay strategy:
+- Scope and replay boundaries:
+- Idempotency and dedupe strategy:
 - Runtime and resource estimate:
 
 Cutover plan:
@@ -143,13 +162,14 @@ Rollback plan:
 - Data consistency safeguards:
 ```
 
-## Template J: Validation and Acceptance
+## Template K: Validation and Acceptance
 
 ```markdown
 Validation plan:
 - Pre-launch checks:
 - Parallel-run checks:
 - Post-cutover checks:
+- Recovery and lag-drain checks:
 - Monitoring stabilization window:
 
 Acceptance criteria:
@@ -158,25 +178,26 @@ Acceptance criteria:
 3. [Criterion]
 ```
 
-## Template K: Final Data Plan Bundle
+## Template L: Final Data Plan Bundle
 
 ```markdown
 Final Data Plan Bundle:
 1. Problem statement and data product goals
 2. Assumptions and constraints
-3. Source inventory and freshness/SLA targets
-4. Volume/performance/cost estimates
-5. Ingestion and orchestration plan
-6. Transformation/modeling plan
-7. Data quality and reconciliation plan
-8. Schema evolution and compatibility plan
-9. Lineage/observability/operations plan
-10. Backfill/cutover/rollback strategy
-11. Validation gates and acceptance criteria
-12. Open risks and follow-up actions
+3. Source/event contracts and ownership
+4. Event semantics and freshness/latency model
+5. Volume/state/performance/cost estimates
+6. Ingestion topology and orchestration plan
+7. Processing/modeling and serving plan
+8. Data quality and reconciliation plan
+9. Schema evolution and compatibility plan
+10. Streaming operations and observability plan
+11. Backfill/replay/cutover/rollback strategy
+12. Validation gates and acceptance criteria
+13. Open risks, residual risk owners, and follow-up actions
 ```
 
-## Template L: One-Shot Mode
+## Template M: One-Shot Mode
 
 Use this when the user asks for a complete answer immediately.
 
@@ -186,30 +207,30 @@ I will provide a full production data engineering package. Inputs are partial, s
 ## Assumptions
 [Template B]
 
-## Data Flow
-[Template C]
+## Source/Topology and Event Semantics
+[Template C + Template D]
 
-## Capacity, Performance, and Cost
-[Template D]
-
-## Ingestion and Orchestration
+## Capacity, State, Performance, and Cost
 [Template E]
 
-## Modeling, Contracts, and Schema Evolution
+## Ingestion and Orchestration
 [Template F]
 
-## Data Quality and Reconciliation
+## Processing, Contracts, and Schema Evolution
 [Template G]
 
-## Lineage and Operations
+## Data Quality and Reconciliation
 [Template H]
 
-## Backfill, Cutover, and Rollback
+## Streaming Operations
 [Template I]
 
-## Validation and Acceptance
+## Backfill, Replay, Cutover, and Rollback
 [Template J]
 
+## Validation and Acceptance
+[Template K]
+
 ## Final Data Plan Bundle
-[Template K condensed]
+[Template L condensed]
 ```

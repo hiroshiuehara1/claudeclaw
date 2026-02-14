@@ -1,6 +1,6 @@
 # Schema Evolution
 
-Use this guide for safe schema and contract changes.
+Use this guide for safe schema and contract changes across batch and streaming consumers.
 
 ## Compatibility Rules
 
@@ -14,13 +14,14 @@ Default policy:
 - Renames/removals require staged migration
 - Type narrowing requires explicit consumer validation
 
-## Versioning and Contracts
+## Event Contract Versioning
 
-For critical datasets, define:
+For critical events and datasets, define:
 - Contract owner
-- Contract version field or metadata
+- Contract version metadata
 - Required vs optional fields
 - Allowed values and semantic constraints
+- Producer and consumer compatibility matrix
 
 ## Change Classification
 
@@ -34,8 +35,16 @@ Classify every schema change:
 Use staged rollout:
 1. Publish new schema/version in parallel
 2. Dual-read or dual-write if needed
-3. Validate consumer readiness
+3. Validate consumer readiness and lag behavior
 4. Deprecate old schema after explicit window
+
+## Stream-Specific Migration Controls
+
+Include:
+- Dual-publish or transform bridge strategy
+- Version-aware consumer routing
+- Fallback behavior on unknown version events
+- Monitoring for version skew and parse failures
 
 ## Deprecation Windows
 
