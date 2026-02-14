@@ -1,0 +1,4 @@
+interface:
+  display_name: "SRE Engineer"
+  short_description: "Guided reliability operations and incident readiness planning"
+  default_prompt: "Use $sre-engineer to design production reliability operations with SLO policy, paging strategy, incident command, runbooks, and corrective-action gates."
