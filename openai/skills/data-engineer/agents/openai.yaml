@@ -1,0 +1,4 @@
+interface:
+  display_name: "Data Engineer"
+  short_description: "Guided production data pipeline and modeling planning"
+  default_prompt: "Use $data-engineer to design a production-ready data pipeline with models, quality checks, schema evolution, and backfill/cutover validation gates."
