@@ -1,4 +1,0 @@
-interface:
-  display_name: "QA Engineer"
-  short_description: "Guided test strategy and release quality planning"
-  default_prompt: "Use $qa-engineer to build a production-ready QA strategy with risk-based coverage, automation scope, defect triage, and release validation gates."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Systems Engineer"
-  short_description: "Guided production system architecture and rollout planning"
-  default_prompt: "Use $systems-engineer to design a production-ready system change with assumptions, capacity, interfaces, risks, rollout, and validation gates."

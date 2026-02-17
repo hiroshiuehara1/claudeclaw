@@ -1,4 +1,0 @@
-interface:
-  display_name: "System Design Interview"
-  short_description: "Structured interview workflow for scalable system design answers"
-  default_prompt: "Use $system-design-interview to guide me through a system design interview using clarifying questions, core estimates, architecture, and tradeoff analysis."

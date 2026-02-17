@@ -1,4 +1,0 @@
-interface:
-  display_name: "MLOps Engineer"
-  short_description: "Guided model lifecycle and retraining operations planning"
-  default_prompt: "Use $mlops-engineer to design a production model lifecycle plan with lineage, eval gates, registry promotion, serving rollout, drift detection, and retraining controls."

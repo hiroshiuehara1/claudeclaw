@@ -1,4 +1,0 @@
-interface:
-  display_name: "AI Engineer"
-  short_description: "Guided LLM delivery planning with evals and guardrails"
-  default_prompt: "Use $ai-engineer to design a production-ready LLM feature with retrieval, evals, guardrails, model routing, and rollout monitoring gates."

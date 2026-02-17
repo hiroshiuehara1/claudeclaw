@@ -1,4 +1,0 @@
-interface:
-  display_name: "DevOps Platform Engineer"
-  short_description: "Guided CI/CD and platform reliability planning"
-  default_prompt: "Use $devops-platform-engineer to design a production delivery platform with CI/CD topology, IaC governance, secrets policy, promotion gates, and rollback controls."
