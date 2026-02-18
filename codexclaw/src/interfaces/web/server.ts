@@ -29,6 +29,10 @@ function serializeErrorEvent(message: string, backend: BackendMode = "auto"): Ch
 }
 
 type WsRawMessage = string | Buffer | ArrayBuffer | Buffer[];
+type WsSocketLike = {
+  on: (event: string, listener: (...args: any[]) => void) => void;
+  send: (value: string) => void;
+};
 
 function rawMessageToString(rawData: WsRawMessage): string {
   if (typeof rawData === "string") {
@@ -41,6 +45,24 @@ function rawMessageToString(rawData: WsRawMessage): string {
     return Buffer.from(rawData).toString("utf-8");
   }
   return rawData.toString("utf-8");
+}
+
+function resolveWsSocket(connection: unknown): WsSocketLike | null {
+  if (typeof connection !== "object" || connection === null) {
+    return null;
+  }
+
+  const direct = connection as Partial<WsSocketLike>;
+  if (typeof direct.on === "function" && typeof direct.send === "function") {
+    return direct as WsSocketLike;
+  }
+
+  const nested = (connection as { socket?: Partial<WsSocketLike> }).socket;
+  if (nested && typeof nested.on === "function" && typeof nested.send === "function") {
+    return nested as WsSocketLike;
+  }
+
+  return null;
 }
 
 export class WebServer {
@@ -182,11 +204,16 @@ export class WebServer {
     });
 
     this.app.get("/api/chat/ws", { websocket: true }, (connection) => {
+      const socket = resolveWsSocket(connection);
+      if (!socket) {
+        return;
+      }
+
       let busy = false;
 
-      connection.socket.on("message", (rawData: WsRawMessage) => {
+      socket.on("message", (rawData: WsRawMessage) => {
         if (busy) {
-          connection.socket.send(JSON.stringify(serializeErrorEvent("Connection is busy")));
+          socket.send(JSON.stringify(serializeErrorEvent("Connection is busy")));
           return;
         }
 
@@ -196,7 +223,7 @@ export class WebServer {
             const body = JSON.parse(rawMessageToString(rawData)) as unknown;
             const parsed = chatRequestSchema.safeParse(body);
             if (!parsed.success) {
-              connection.socket.send(
+              socket.send(
                 JSON.stringify(
                   serializeErrorEvent(
                     `Invalid payload: ${parsed.error.issues.map((issue) => issue.message).join(", ")}`
@@ -217,7 +244,7 @@ export class WebServer {
               const result = await this.chatService.chat(payload);
               const text = normalizeStrictOneShotText(result.text);
               const requestId = nanoid();
-              connection.socket.send(
+              socket.send(
                 JSON.stringify({
                   type: "response.start",
                   sessionId: result.sessionId,
@@ -226,7 +253,7 @@ export class WebServer {
                 })
               );
               if (text) {
-                connection.socket.send(
+                socket.send(
                   JSON.stringify({
                     type: "response.delta",
                     sessionId: result.sessionId,
@@ -236,7 +263,7 @@ export class WebServer {
                   })
                 );
               }
-              connection.socket.send(
+              socket.send(
                 JSON.stringify({
                   type: "response.end",
                   sessionId: result.sessionId,
@@ -247,12 +274,12 @@ export class WebServer {
               );
             } else {
               for await (const event of this.chatService.streamChat(payload)) {
-                connection.socket.send(JSON.stringify(event));
+                socket.send(JSON.stringify(event));
               }
             }
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            connection.socket.send(JSON.stringify(serializeErrorEvent(message)));
+            socket.send(JSON.stringify(serializeErrorEvent(message)));
           } finally {
             busy = false;
           }
