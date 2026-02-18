@@ -12,10 +12,15 @@ on:
   workflow_dispatch:
     inputs:
       run_smoke:
-        description: "Run optional smoke job (requires codex and claude CLIs on runner)"
+        description: "Run smoke job"
         required: false
         default: false
         type: boolean
+      smoke_runner_labels:
+        description: "JSON array for runs-on labels (use self-hosted labels)"
+        required: false
+        default: '["self-hosted","linux","x64","codexclaw"]'
+        type: string
 
 permissions:
   contents: read
@@ -52,10 +57,10 @@ jobs:
         run: npm test
 
   smoke:
-    name: smoke-optional
+    name: smoke-self-hosted
     needs: lint_test
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_smoke }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.smoke_runner_labels) }}
     defaults:
       run:
         working-directory: codexclaw
@@ -73,24 +78,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check codex/claude CLI availability
-        id: cli_check
-        shell: bash
+      - name: Preflight backend CLIs
         run: |
-          if ! command -v codex >/dev/null 2>&1; then
-            echo "codex_missing=true" >> "$GITHUB_OUTPUT"
-            echo "codex CLI missing on runner"
-          fi
-          if ! command -v claude >/dev/null 2>&1; then
-            echo "claude_missing=true" >> "$GITHUB_OUTPUT"
-            echo "claude CLI missing on runner"
-          fi
-
-      - name: Skip reason
-        if: ${{ steps.cli_check.outputs.codex_missing == 'true' || steps.cli_check.outputs.claude_missing == 'true' }}
-        run: |
-          echo "Skipping smoke: codex and/or claude CLI not available on this runner."
+          command -v codex
+          codex --version
+          command -v claude
+          claude --version
 
       - name: Smoke
-        if: ${{ steps.cli_check.outputs.codex_missing != 'true' && steps.cli_check.outputs.claude_missing != 'true' }}
         run: bash scripts/smoke.sh

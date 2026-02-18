@@ -82,4 +82,6 @@ bash scripts/smoke.sh
 - Workflow file: `.github/workflows/codexclaw-ci.yml`
 - Push/PR on `codexclaw/**`: runs `npm ci`, `npm run lint`, `npm test`
 - Optional smoke job: trigger `codexclaw-ci` via **workflow_dispatch** with `run_smoke=true`
-  - Smoke requires `codex` and `claude` CLIs on the runner; job will skip smoke if missing.
+  - Default smoke runner labels: `["self-hosted","linux","x64","codexclaw"]`
+  - Ensure your self-hosted runner has `codex` + `claude` installed and authenticated.
+  - You can override runner labels in `smoke_runner_labels` when dispatching the workflow.
