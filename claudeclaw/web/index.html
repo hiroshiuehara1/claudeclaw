@@ -5,10 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ClaudeClaw</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
 </head>
 <body>
   <div id="app">
     <header>
+      <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar">&#9776;</button>
       <h1>ClaudeClaw</h1>
       <div id="controls">
         <select id="backend-select">
@@ -16,18 +20,30 @@
           <option value="openai">OpenAI</option>
         </select>
         <input id="model-input" type="text" placeholder="Model (optional)">
+        <button id="export-btn" type="button">Export</button>
         <button id="new-session" type="button">New Session</button>
       </div>
     </header>
-    <main id="chat-container">
-      <div id="messages"></div>
-    </main>
-    <footer>
-      <form id="chat-form">
-        <textarea id="chat-input" placeholder="Type a message..." rows="2"></textarea>
-        <button type="submit" id="send-btn">Send</button>
-      </form>
-    </footer>
+    <div id="layout">
+      <aside id="sidebar">
+        <div id="sidebar-header">
+          <h2>Sessions</h2>
+          <button id="sidebar-new-session" type="button">+ New</button>
+        </div>
+        <ul id="session-list"></ul>
+      </aside>
+      <div id="main-panel">
+        <main id="chat-container">
+          <div id="messages"></div>
+        </main>
+        <footer>
+          <form id="chat-form">
+            <textarea id="chat-input" placeholder="Type a message..." rows="2"></textarea>
+            <button type="submit" id="send-btn">Send</button>
+          </form>
+        </footer>
+      </div>
+    </div>
   </div>
   <script src="app.js"></script>
 </body>

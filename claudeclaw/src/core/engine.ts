@@ -26,6 +26,10 @@ export class Engine {
     this.skillRegistry = options.skillRegistry;
   }
 
+  get memory(): MemoryManager | undefined {
+    return this.memoryManager;
+  }
+
   async *chat(
     prompt: string,
     sessionId: string,
@@ -134,6 +138,7 @@ export class Engine {
 
   async shutdown(): Promise<void> {
     logger.info("Engine shutting down...");
+    await this.skillRegistry?.shutdown();
     await this.memoryManager?.close();
   }
 }

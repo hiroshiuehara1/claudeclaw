@@ -8,6 +8,9 @@ import type { Engine } from "../../core/engine.js";
 import type { InterfaceAdapter } from "../types.js";
 import { logger } from "../../utils/logger.js";
 import { registerRoutes } from "./routes.js";
+import { registerSseRoutes } from "./sse.js";
+import { registerSessionRoutes } from "./sessions.js";
+import { registerExportRoutes } from "./export.js";
 import { registerSecurity } from "./middleware/security.js";
 import { createAuthHook } from "./middleware/auth.js";
 import { registerHealthRoutes } from "./health.js";
@@ -48,6 +51,9 @@ export class WebAdapter implements InterfaceAdapter {
 
     registerHealthRoutes(this.app, engine);
     registerRoutes(this.app, engine);
+    registerSseRoutes(this.app, engine);
+    registerSessionRoutes(this.app, engine);
+    registerExportRoutes(this.app, engine);
 
     const { web } = engine.config;
     await this.app.listen({ port: web.port, host: web.host });

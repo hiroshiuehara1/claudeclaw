@@ -115,6 +115,48 @@ export class SqliteStore {
       .run(sessionId, backend || null, model || null, cwd || null);
   }
 
+  listSessions(limit = 50, offset = 0): { id: string; backend: string | null; model: string | null; created_at: string; updated_at: string; message_count: number }[] {
+    return this.db
+      .prepare(
+        `SELECT s.id, s.backend, s.model, s.created_at, s.updated_at,
+                (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) as message_count
+         FROM sessions s
+         ORDER BY s.updated_at DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(limit, offset) as { id: string; backend: string | null; model: string | null; created_at: string; updated_at: string; message_count: number }[];
+  }
+
+  getSession(sessionId: string): { id: string; backend: string | null; model: string | null; created_at: string; updated_at: string; message_count: number } | undefined {
+    return this.db
+      .prepare(
+        `SELECT s.id, s.backend, s.model, s.created_at, s.updated_at,
+                (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) as message_count
+         FROM sessions s WHERE s.id = ?`,
+      )
+      .get(sessionId) as { id: string; backend: string | null; model: string | null; created_at: string; updated_at: string; message_count: number } | undefined;
+  }
+
+  deleteSession(sessionId: string): void {
+    const deleteMessages = this.db.prepare("DELETE FROM messages WHERE session_id = ?");
+    const deleteSession = this.db.prepare("DELETE FROM sessions WHERE id = ?");
+    const transaction = this.db.transaction(() => {
+      deleteMessages.run(sessionId);
+      deleteSession.run(sessionId);
+    });
+    transaction();
+  }
+
+  getAllMessages(sessionId: string): ConversationMessage[] {
+    return this.db
+      .prepare(
+        `SELECT role, content FROM messages
+         WHERE session_id = ?
+         ORDER BY id ASC`,
+      )
+      .all(sessionId) as ConversationMessage[];
+  }
+
   close(): void {
     this.db.close();
   }
