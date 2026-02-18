@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.codexclaw/
+coverage/
+.DS_Store
+*.log
