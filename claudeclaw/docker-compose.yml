@@ -1,0 +1,28 @@
+services:
+  claudeclaw:
+    build: .
+    container_name: claudeclaw
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - claw-data:/data
+    environment:
+      - NODE_ENV=production
+      - CLAW_DATA_DIR=/data
+      - CLAW_DEFAULT_BACKEND=${CLAW_DEFAULT_BACKEND:-claude}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAW_WEB_PORT=3100
+      - CLAW_WEB_HOST=0.0.0.0
+      - CLAW_WEB_API_KEY=${CLAW_WEB_API_KEY}
+      - CLAW_LOG_LEVEL=${CLAW_LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  claw-data:

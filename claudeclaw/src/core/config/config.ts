@@ -38,6 +38,10 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
         ? parseInt(process.env.CLAW_WEB_PORT, 10)
         : undefined,
       host: process.env.CLAW_WEB_HOST,
+      apiKey: process.env.CLAW_WEB_API_KEY,
+      corsOrigins: process.env.CLAW_WEB_CORS_ORIGINS
+        ? process.env.CLAW_WEB_CORS_ORIGINS.split(",").map((s) => s.trim())
+        : undefined,
     },
     ...(process.env.CLAW_TELEGRAM_TOKEN
       ? { telegram: { botToken: process.env.CLAW_TELEGRAM_TOKEN } }

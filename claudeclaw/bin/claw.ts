@@ -16,6 +16,7 @@ import {
   scaffoldSkill,
 } from "../src/core/skill/marketplace.js";
 import { setLogLevel } from "../src/utils/logger.js";
+import { LifecycleManager } from "../src/utils/lifecycle.js";
 import type { BackendType } from "../src/core/config/schema.js";
 import type { InterfaceAdapter } from "../src/interfaces/types.js";
 
@@ -79,13 +80,20 @@ program
 
 program
   .command("serve <platform>")
-  .description("Start a chat platform adapter (telegram | discord | slack)")
+  .description("Start a chat platform adapter (web | telegram | discord | slack)")
   .option("-b, --backend <type>", "Backend to use (claude | openai)")
   .action(async (platform: string, opts: { backend?: string }) => {
     const engine = createEngine(opts.backend as BackendType | undefined);
     let adapter: InterfaceAdapter;
 
     switch (platform) {
+      case "web": {
+        const { WebAdapter } = await import(
+          "../src/interfaces/web/server.js"
+        );
+        adapter = new WebAdapter();
+        break;
+      }
       case "telegram": {
         const { TelegramAdapter } = await import(
           "../src/interfaces/chat/telegram-adapter.js"
@@ -108,9 +116,14 @@ program
         break;
       }
       default:
-        console.error(`Unknown platform: ${platform}. Use telegram, discord, or slack.`);
+        console.error(`Unknown platform: ${platform}. Use web, telegram, discord, or slack.`);
         process.exit(1);
     }
+
+    const lifecycle = new LifecycleManager();
+    lifecycle.register("engine", () => engine.shutdown());
+    lifecycle.register("adapter", () => adapter.stop());
+    lifecycle.install();
 
     await adapter.start(engine);
   });

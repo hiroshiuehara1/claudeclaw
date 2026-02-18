@@ -3,7 +3,8 @@ import type { Backend, BackendEvent, BackendQueryOptions, ToolDefinition } from 
 import type { MemoryManager } from "./memory/memory-manager.js";
 import type { SkillRegistry } from "./skill/registry.js";
 import { createBackend } from "./backend/backend-factory.js";
-import { logger } from "../utils/logger.js";
+import { logger, createChildLogger } from "../utils/logger.js";
+import { BackendError } from "../utils/errors.js";
 
 export interface EngineOptions {
   config: Config;
@@ -30,7 +31,8 @@ export class Engine {
     sessionId: string,
     options: Partial<BackendQueryOptions> = {},
   ): AsyncGenerator<BackendEvent> {
-    logger.debug(`Engine.chat: session=${sessionId}, prompt=${prompt.slice(0, 80)}...`);
+    const log = createChildLogger({ sessionId });
+    log.debug(`Engine.chat: prompt=${prompt.slice(0, 80)}...`);
 
     // Build system prompt with memory context
     let systemPrompt = this.config.systemPrompt || "You are ClaudeClaw, a helpful personal AI assistant.";
@@ -61,11 +63,17 @@ export class Engine {
       ? await this.memoryManager.getHistory(sessionId)
       : options.messages || [];
 
+    // Set up timeout via AbortController
+    const timeout = this.config.engine?.chatTimeout ?? 120_000;
+    const abortController = new AbortController();
+    const timer = setTimeout(() => abortController.abort(), timeout);
+
     const queryOptions: BackendQueryOptions = {
       ...options,
       systemPrompt,
       messages,
       tools: tools.length > 0 ? tools : options.tools,
+      signal: abortController.signal,
     };
 
     // Persist user message
@@ -75,11 +83,26 @@ export class Engine {
 
     let fullResponse = "";
 
-    for await (const event of this.backend.query(prompt, queryOptions)) {
-      if (event.type === "text" && event.text) {
-        fullResponse += event.text;
+    try {
+      for await (const event of this.backend.query(prompt, queryOptions)) {
+        if (abortController.signal.aborted) {
+          yield { type: "error" as const, error: "Request timed out" };
+          break;
+        }
+        if (event.type === "text" && event.text) {
+          fullResponse += event.text;
+        }
+        yield event;
       }
-      yield event;
+    } catch (err) {
+      if (abortController.signal.aborted) {
+        log.warn("Chat request timed out");
+        yield { type: "error" as const, error: "Request timed out" };
+        return;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
 
     // Persist assistant response
@@ -107,5 +130,10 @@ export class Engine {
 
   setSkillRegistry(sr: SkillRegistry): void {
     this.skillRegistry = sr;
+  }
+
+  async shutdown(): Promise<void> {
+    logger.info("Engine shutting down...");
+    await this.memoryManager?.close();
   }
 }

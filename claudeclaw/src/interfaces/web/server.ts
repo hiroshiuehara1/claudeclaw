@@ -8,6 +8,9 @@ import type { Engine } from "../../core/engine.js";
 import type { InterfaceAdapter } from "../types.js";
 import { logger } from "../../utils/logger.js";
 import { registerRoutes } from "./routes.js";
+import { registerSecurity } from "./middleware/security.js";
+import { createAuthHook } from "./middleware/auth.js";
+import { registerHealthRoutes } from "./health.js";
 
 export class WebAdapter implements InterfaceAdapter {
   private engine!: Engine;
@@ -16,15 +19,22 @@ export class WebAdapter implements InterfaceAdapter {
   async start(engine: Engine): Promise<void> {
     this.engine = engine;
 
+    // Register security plugins before routes
+    await registerSecurity(this.app, engine.config);
+
+    // API key auth (if configured)
+    if (engine.config.web.apiKey) {
+      this.app.addHook("onRequest", createAuthHook(engine.config.web.apiKey));
+    }
+
     await this.app.register(websocket);
 
     // Serve static web UI files
     const currentDir = dirname(fileURLToPath(import.meta.url));
-    // Try multiple possible locations for the web directory
     const webDirs = [
-      join(currentDir, "../../web"),       // from src/interfaces/web/
-      join(currentDir, "../../../web"),     // from dist/
-      join(process.cwd(), "web"),          // from cwd
+      join(currentDir, "../../web"),
+      join(currentDir, "../../../web"),
+      join(process.cwd(), "web"),
     ];
     const webRoot = webDirs.find((d) => existsSync(d));
     if (webRoot) {
@@ -36,6 +46,7 @@ export class WebAdapter implements InterfaceAdapter {
       logger.debug(`Serving web UI from ${webRoot}`);
     }
 
+    registerHealthRoutes(this.app, engine);
     registerRoutes(this.app, engine);
 
     const { web } = engine.config;
