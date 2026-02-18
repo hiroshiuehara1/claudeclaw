@@ -40,6 +40,14 @@ export class Engine {
       if (context) {
         systemPrompt += `\n\n<memory>\n${context}\n</memory>`;
       }
+
+      // Semantic search for relevant past context
+      const topK = this.config.vectorMemory?.topK || 5;
+      const semanticResults = await this.memoryManager.search(prompt, topK);
+      if (semanticResults.length > 0) {
+        const relevant = semanticResults.map((r) => `- ${r.content}`).join("\n");
+        systemPrompt += `\n\n<relevant_context>\n${relevant}\n</relevant_context>`;
+      }
     }
 
     // Gather tools from skill registry

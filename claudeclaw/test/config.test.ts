@@ -45,4 +45,44 @@ describe("Config", () => {
   it("should reject invalid backend type", () => {
     expect(() => ConfigSchema.parse({ defaultBackend: "invalid" })).toThrow();
   });
+
+  it("should apply vectorMemory defaults", () => {
+    const config = ConfigSchema.parse({});
+    expect(config.vectorMemory.enabled).toBe(false);
+    expect(config.vectorMemory.topK).toBe(5);
+    expect(config.vectorMemory.embeddingModel).toBeUndefined();
+  });
+
+  it("should apply browserControl defaults", () => {
+    const config = ConfigSchema.parse({});
+    expect(config.browserControl.headless).toBe(true);
+    expect(config.browserControl.timeout).toBe(30000);
+  });
+
+  it("should parse telegram config when provided", () => {
+    const config = ConfigSchema.parse({ telegram: { botToken: "tok123" } });
+    expect(config.telegram?.botToken).toBe("tok123");
+  });
+
+  it("should parse discord config when provided", () => {
+    const config = ConfigSchema.parse({ discord: { botToken: "tok456", guildId: "g1" } });
+    expect(config.discord?.botToken).toBe("tok456");
+    expect(config.discord?.guildId).toBe("g1");
+  });
+
+  it("should parse slack config when provided", () => {
+    const config = ConfigSchema.parse({
+      slack: { botToken: "xoxb", appToken: "xapp", signingSecret: "sec" },
+    });
+    expect(config.slack?.botToken).toBe("xoxb");
+    expect(config.slack?.appToken).toBe("xapp");
+    expect(config.slack?.signingSecret).toBe("sec");
+  });
+
+  it("should load telegram token from env", () => {
+    process.env.CLAW_TELEGRAM_TOKEN = "env-tok";
+    const config = loadConfig();
+    expect(config.telegram?.botToken).toBe("env-tok");
+    delete process.env.CLAW_TELEGRAM_TOKEN;
+  });
 });

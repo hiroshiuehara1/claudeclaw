@@ -11,6 +11,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   splitting: false,
+  external: ["telegraf", "discord.js", "@slack/bolt", "playwright"],
   banner: {
     js: "// ClaudeClaw — Open-Source Personal AI Assistant",
   },

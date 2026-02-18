@@ -15,7 +15,10 @@ export abstract class ChatPlatformAdapter implements InterfaceAdapter {
   abstract stop(): Promise<void>;
   abstract sendReply(channelId: string, text: string): Promise<void>;
 
-  protected async handleIncoming(message: InterfaceMessage): Promise<void> {
+  protected async handleIncoming(
+    message: InterfaceMessage,
+    replyTarget?: string,
+  ): Promise<void> {
     const sessionId = message.sessionId || nanoid(12);
     let fullText = "";
 
@@ -26,7 +29,7 @@ export abstract class ChatPlatformAdapter implements InterfaceAdapter {
         }
       }
       if (fullText) {
-        await this.sendReply(sessionId, fullText);
+        await this.sendReply(replyTarget || sessionId, fullText);
       }
     } catch (err) {
       logger.error(

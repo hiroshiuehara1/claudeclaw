@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClaudeClaw</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>ClaudeClaw</h1>
+      <div id="controls">
+        <select id="backend-select">
+          <option value="claude">Claude</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <input id="model-input" type="text" placeholder="Model (optional)">
+        <button id="new-session" type="button">New Session</button>
+      </div>
+    </header>
+    <main id="chat-container">
+      <div id="messages"></div>
+    </main>
+    <footer>
+      <form id="chat-form">
+        <textarea id="chat-input" placeholder="Type a message..." rows="2"></textarea>
+        <button type="submit" id="send-btn">Send</button>
+      </form>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

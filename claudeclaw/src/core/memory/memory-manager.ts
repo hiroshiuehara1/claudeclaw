@@ -1,9 +1,15 @@
 import type { ConversationMessage } from "../backend/types.js";
 import type { SqliteStore } from "./sqlite-store.js";
+import type { VectorStore, VectorSearchResult } from "./vector-store.js";
+import type { Embedder } from "./embedder.js";
 import { logger } from "../../utils/logger.js";
 
 export class MemoryManager {
-  constructor(private store: SqliteStore) {}
+  constructor(
+    private store: SqliteStore,
+    private vectorStore?: VectorStore,
+    private embedder?: Embedder,
+  ) {}
 
   async loadContext(sessionId: string): Promise<string | null> {
     const memories = this.store.getMemories();
@@ -23,10 +29,37 @@ export class MemoryManager {
     content: string,
   ): Promise<void> {
     this.store.addMessage(sessionId, role, content);
+
+    // Also embed for vector search (fire-and-forget)
+    if (this.vectorStore && this.embedder) {
+      try {
+        const embedding = await this.embedder.embed(content);
+        this.vectorStore.insert(content, embedding, { sessionId, role });
+      } catch (err) {
+        logger.warn(
+          `Vector embedding failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+  }
+
+  async search(
+    query: string,
+    topK = 5,
+  ): Promise<VectorSearchResult[]> {
+    if (!this.vectorStore || !this.embedder) return [];
+    try {
+      const queryEmbedding = await this.embedder.embed(query);
+      return this.vectorStore.search(queryEmbedding, topK);
+    } catch (err) {
+      logger.warn(
+        `Vector search failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return [];
+    }
   }
 
   async remember(fact: string): Promise<void> {
-    // Parse "category: key = value" or just store as general fact
     const match = fact.match(/^(\w+):\s*(.+?)\s*=\s*(.+)$/);
     if (match) {
       this.store.upsertMemory(match[1], match[2], match[3]);

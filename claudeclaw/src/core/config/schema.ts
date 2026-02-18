@@ -13,6 +13,32 @@ export const SkillSourceSchema = z.object({
   enabled: z.boolean().default(true),
 });
 
+export const TelegramConfigSchema = z.object({
+  botToken: z.string(),
+});
+
+export const DiscordConfigSchema = z.object({
+  botToken: z.string(),
+  guildId: z.string().optional(),
+});
+
+export const SlackConfigSchema = z.object({
+  botToken: z.string(),
+  appToken: z.string(),
+  signingSecret: z.string(),
+});
+
+export const VectorMemoryConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  topK: z.number().int().min(1).max(50).default(5),
+  embeddingModel: z.string().optional(),
+});
+
+export const BrowserControlConfigSchema = z.object({
+  headless: z.boolean().default(true),
+  timeout: z.number().int().default(30000),
+});
+
 export const ConfigSchema = z.object({
   defaultBackend: BackendType.default("claude"),
   defaultModel: z.string().optional(),
@@ -28,6 +54,17 @@ export const ConfigSchema = z.object({
     .default({ port: 3100, host: "127.0.0.1" }),
   skills: z.array(SkillSourceSchema).default([]),
   systemPrompt: z.string().optional(),
+  telegram: TelegramConfigSchema.optional(),
+  discord: DiscordConfigSchema.optional(),
+  slack: SlackConfigSchema.optional(),
+  vectorMemory: VectorMemoryConfigSchema.default({
+    enabled: false,
+    topK: 5,
+  }),
+  browserControl: BrowserControlConfigSchema.default({
+    headless: true,
+    timeout: 30000,
+  }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

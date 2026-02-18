@@ -1,15 +1,16 @@
 # ClaudeClaw
 
-Open-source personal AI assistant with first-class Claude and OpenAI support. Runs locally with a streaming engine, persistent memory, extensible skill system, and multiple interfaces (CLI, Web, chat platforms).
+Open-source personal AI assistant with first-class Claude and OpenAI support. Runs locally with a streaming engine, persistent memory, extensible skill system, and multiple interfaces (CLI, Web UI, Telegram, Discord, Slack).
 
 ## Features
 
 - **Dual-backend** — Claude (Anthropic SDK) and OpenAI with streaming responses
-- **Memory** — SQLite-backed conversation history and persistent facts
-- **Skills** — Pluggable tool system (bundled, npm, or local skills)
+- **Memory** — SQLite-backed conversation history, persistent facts, and vector-search semantic recall
+- **Skills** — Pluggable tool system (bundled, npm, or local skills) with marketplace
 - **CLI** — Interactive REPL and one-shot mode
-- **Web** — REST API and WebSocket streaming via Fastify
-- **Chat platforms** — Base adapter for Telegram, Discord, Slack (Phase 2)
+- **Web UI** — Chat interface with streaming, served via Fastify
+- **Chat platforms** — Telegram, Discord, and Slack adapters
+- **Browser control** — Playwright-powered web automation skill
 
 ## Quick Start
 
@@ -32,25 +33,47 @@ npx claw chat
 npx claw run --backend openai "hello"
 ```
 
-### Web Server
+### Web UI
+
+The web UI is served automatically at `http://127.0.0.1:3100` when you start the web server.
+
+### Chat Platforms
 
 ```bash
-# Start the server (default: http://127.0.0.1:3100)
-node -e "
-  import('./dist/index.js').then(async ({ loadConfig, Engine }) => {
-    const { WebAdapter } = await import('./dist/index.js');
-    const engine = new Engine({ config: loadConfig() });
-    const web = new (await import('./src/interfaces/web/server.js')).WebAdapter();
-    await web.start(engine);
-  });
-"
+# Start a Telegram bot (requires CLAW_TELEGRAM_TOKEN)
+npx claw serve telegram
 
-# REST
-curl -X POST http://localhost:3100/api/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"prompt": "hello"}'
+# Start a Discord bot (requires CLAW_DISCORD_TOKEN)
+npx claw serve discord
 
-# WebSocket — connect to ws://localhost:3100/api/chat/ws
+# Start a Slack bot (requires CLAW_SLACK_BOT_TOKEN + CLAW_SLACK_APP_TOKEN)
+npx claw serve slack
+```
+
+Install the platform SDK you need:
+```bash
+npm install telegraf        # for Telegram
+npm install discord.js      # for Discord
+npm install @slack/bolt     # for Slack
+```
+
+### Skill Marketplace
+
+```bash
+# Search for community skills
+npx claw skill search "code"
+
+# Install a skill from npm
+npx claw skill install my-skill
+
+# Remove a skill
+npx claw skill remove my-skill
+
+# Scaffold a new skill project
+npx claw skill create my-new-skill
+
+# List registered skills
+npx claw skill list
 ```
 
 ## Configuration
@@ -65,13 +88,20 @@ Config is loaded from environment variables and `~/.claudeclaw/config.json`.
 | `CLAW_LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
 | `CLAW_DATA_DIR` | Data directory path | `~/.claudeclaw` |
 | `CLAW_WEB_PORT` | Web server port | `3100` |
+| `CLAW_TELEGRAM_TOKEN` | Telegram bot token | — |
+| `CLAW_DISCORD_TOKEN` | Discord bot token | — |
+| `CLAW_SLACK_BOT_TOKEN` | Slack bot token | — |
+| `CLAW_SLACK_APP_TOKEN` | Slack app-level token | — |
+| `CLAW_SLACK_SIGNING_SECRET` | Slack signing secret | — |
+| `CLAW_VECTOR_MEMORY_ENABLED` | Enable vector-search memory | `false` |
 
 ## Skills
 
-Skills provide tools, MCP servers, and system prompt fragments. Two bundled skills are included:
+Three bundled skills are included:
 
 - **git-workflow** — git status, diff, log, and shell access
 - **code-review** — file reading, directory listing, and diff review
+- **browser-control** — navigate, screenshot, click, type, extract text, evaluate JS (requires `playwright`)
 
 ### Writing a Skill
 
@@ -106,13 +136,15 @@ SQLite database at `~/.claudeclaw/memory.db` stores:
 - **memories** — persistent facts and preferences
 - **sessions** — session metadata
 
+**Vector search**: Enable with `CLAW_VECTOR_MEMORY_ENABLED=true` (requires `OPENAI_API_KEY` for embeddings). Past conversations are semantically searched and injected as context, enabling recall across sessions.
+
 Say "remember ..." in chat to persist facts across sessions.
 
 ## Development
 
 ```bash
 npm run dev          # watch mode build
-npm test             # run tests (vitest)
+npm test             # run tests (vitest, 71 tests)
 npm run lint         # type check
 ```
 
@@ -125,16 +157,17 @@ claudeclaw/
 │   ├── core/
 │   │   ├── engine.ts              # Central orchestrator
 │   │   ├── backend/               # Claude + OpenAI backends
-│   │   ├── memory/                # SQLite store + manager
-│   │   ├── skill/                 # Skill types, loader, registry
+│   │   ├── memory/                # SQLite store, vector store, embedder
+│   │   ├── skill/                 # Types, loader, registry, marketplace
 │   │   └── tools/                 # Built-in tools (git, file-ops, shell)
 │   ├── interfaces/
 │   │   ├── cli/                   # Commander.js + readline REPL
-│   │   ├── web/                   # Fastify REST + WebSocket
-│   │   └── chat/                  # Platform adapter base class
+│   │   ├── web/                   # Fastify REST + WebSocket + static UI
+│   │   └── chat/                  # Telegram, Discord, Slack adapters
 │   └── utils/                     # Logger, errors, stream helpers
-├── skills/                        # Bundled first-party skills
-└── test/                          # 30 tests
+├── skills/                        # Bundled skills (git-workflow, code-review, browser-control)
+├── web/                           # Web UI SPA (HTML/CSS/JS)
+└── test/                          # 71 tests across 11 files
 ```
 
 ## License

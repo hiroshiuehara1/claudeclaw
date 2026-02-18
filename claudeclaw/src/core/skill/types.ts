@@ -6,6 +6,7 @@ export const PermissionSchema = z.enum([
   "fs:write",
   "shell",
   "network",
+  "browser",
 ]);
 export type Permission = z.infer<typeof PermissionSchema>;
 

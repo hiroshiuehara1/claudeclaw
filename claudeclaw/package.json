@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
+    "@fastify/static": "^9.0.0",
     "@fastify/websocket": "^11.2.0",
     "better-sqlite3": "^12.6.2",
     "chalk": "^5.6.2",
@@ -38,6 +39,18 @@
     "openai": "^6.22.0",
     "ora": "^9.3.0",
     "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "telegraf": "^4.16.0",
+    "discord.js": "^14.16.0",
+    "@slack/bolt": "^4.1.0",
+    "playwright": "^1.48.0"
+  },
+  "peerDependenciesMeta": {
+    "telegraf": { "optional": true },
+    "discord.js": { "optional": true },
+    "@slack/bolt": { "optional": true },
+    "playwright": { "optional": true }
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

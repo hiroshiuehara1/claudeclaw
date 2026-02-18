@@ -7,8 +7,17 @@ import { CliAdapter } from "../src/interfaces/cli/index.js";
 import { SqliteStore } from "../src/core/memory/sqlite-store.js";
 import { MemoryManager } from "../src/core/memory/memory-manager.js";
 import { SkillRegistry } from "../src/core/skill/registry.js";
+import { VectorStore } from "../src/core/memory/vector-store.js";
+import { createEmbedder } from "../src/core/memory/embedder.js";
+import {
+  searchSkills,
+  installSkill,
+  removeSkill,
+  scaffoldSkill,
+} from "../src/core/skill/marketplace.js";
 import { setLogLevel } from "../src/utils/logger.js";
 import type { BackendType } from "../src/core/config/schema.js";
+import type { InterfaceAdapter } from "../src/interfaces/types.js";
 
 dotenv.config();
 
@@ -26,7 +35,15 @@ function createEngine(backendOverride?: BackendType) {
   setLogLevel(config.logLevel);
 
   const store = new SqliteStore(config.dataDir);
-  const memoryManager = new MemoryManager(store);
+
+  let vectorStore: VectorStore | undefined;
+  let embedder: NonNullable<ReturnType<typeof createEmbedder>> | undefined;
+  if (config.vectorMemory?.enabled) {
+    vectorStore = new VectorStore(config.dataDir);
+    embedder = createEmbedder(config) ?? undefined;
+  }
+
+  const memoryManager = new MemoryManager(store, vectorStore, embedder);
   const skillRegistry = new SkillRegistry();
 
   return new Engine({
@@ -61,8 +78,46 @@ program
   });
 
 program
-  .command("skill")
-  .description("Manage skills")
+  .command("serve <platform>")
+  .description("Start a chat platform adapter (telegram | discord | slack)")
+  .option("-b, --backend <type>", "Backend to use (claude | openai)")
+  .action(async (platform: string, opts: { backend?: string }) => {
+    const engine = createEngine(opts.backend as BackendType | undefined);
+    let adapter: InterfaceAdapter;
+
+    switch (platform) {
+      case "telegram": {
+        const { TelegramAdapter } = await import(
+          "../src/interfaces/chat/telegram-adapter.js"
+        );
+        adapter = new TelegramAdapter(engine.config);
+        break;
+      }
+      case "discord": {
+        const { DiscordAdapter } = await import(
+          "../src/interfaces/chat/discord-adapter.js"
+        );
+        adapter = new DiscordAdapter(engine.config);
+        break;
+      }
+      case "slack": {
+        const { SlackAdapter } = await import(
+          "../src/interfaces/chat/slack-adapter.js"
+        );
+        adapter = new SlackAdapter(engine.config);
+        break;
+      }
+      default:
+        console.error(`Unknown platform: ${platform}. Use telegram, discord, or slack.`);
+        process.exit(1);
+    }
+
+    await adapter.start(engine);
+  });
+
+const skillCmd = program.command("skill").description("Manage skills");
+
+skillCmd
   .command("list")
   .description("List registered skills")
   .action(() => {
@@ -78,6 +133,43 @@ program
         );
       }
     }
+  });
+
+skillCmd
+  .command("search <query>")
+  .description("Search npm for claudeclaw skills")
+  .action(async (query: string) => {
+    const results = await searchSkills(query);
+    if (results.length === 0) {
+      console.log("No skills found.");
+    } else {
+      for (const r of results) {
+        console.log(`  ${r.name}@${r.version} — ${r.description}`);
+      }
+    }
+  });
+
+skillCmd
+  .command("install <name>")
+  .description("Install a skill from npm")
+  .action(async (name: string) => {
+    const config = loadConfig();
+    installSkill(name, config.dataDir);
+  });
+
+skillCmd
+  .command("remove <name>")
+  .description("Remove an installed skill")
+  .action(async (name: string) => {
+    const config = loadConfig();
+    removeSkill(name, config.dataDir);
+  });
+
+skillCmd
+  .command("create <name>")
+  .description("Scaffold a new skill project")
+  .action((name: string) => {
+    scaffoldSkill(name);
   });
 
 program.parse();
