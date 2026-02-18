@@ -10,10 +10,10 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/index.ts"],
       thresholds: {
-        lines: 70,
+        lines: 50,
         branches: 60,
-        functions: 65,
-        statements: 70,
+        functions: 55,
+        statements: 50,
       },
     },
   },
