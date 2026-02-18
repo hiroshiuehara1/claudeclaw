@@ -30,10 +30,10 @@ export function registerRoutes(app: FastifyInstance, engine: Engine): void {
   // Streaming WebSocket endpoint
   app.register(async (fastify) => {
     fastify.get("/api/chat/ws", { websocket: true }, (socket, _request) => {
-      const sessionId = nanoid(12);
+      let sessionId = nanoid(12);
 
       socket.on("message", async (raw: Buffer) => {
-        let data: { prompt: string; model?: string };
+        let data: { prompt: string; model?: string; sessionId?: string };
         try {
           const rawData = JSON.parse(raw.toString());
           const parsed = WebSocketMessageSchema.safeParse(rawData);
@@ -45,6 +45,11 @@ export function registerRoutes(app: FastifyInstance, engine: Engine): void {
         } catch {
           socket.send(JSON.stringify({ type: "error", error: "Invalid JSON" }));
           return;
+        }
+
+        // Allow client to specify sessionId
+        if (data.sessionId) {
+          sessionId = data.sessionId;
         }
 
         try {

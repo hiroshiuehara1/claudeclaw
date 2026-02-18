@@ -74,6 +74,22 @@ export class MemoryManager {
     this.store.clearSession(sessionId);
   }
 
+  listSessions(limit = 50, offset = 0) {
+    return this.store.listSessions(limit, offset);
+  }
+
+  getSession(sessionId: string) {
+    return this.store.getSession(sessionId);
+  }
+
+  deleteSession(sessionId: string): void {
+    this.store.deleteSession(sessionId);
+  }
+
+  getAllMessages(sessionId: string) {
+    return this.store.getAllMessages(sessionId);
+  }
+
   async close(): Promise<void> {
     this.store.close();
     this.vectorStore?.close();

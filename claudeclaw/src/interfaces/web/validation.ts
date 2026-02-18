@@ -9,4 +9,5 @@ export const ChatRequestSchema = z.object({
 export const WebSocketMessageSchema = z.object({
   prompt: z.string().min(1).max(100_000),
   model: z.string().max(100).optional(),
+  sessionId: z.string().max(100).optional(),
 });
