@@ -50,8 +50,18 @@ export const ConfigSchema = z.object({
     .object({
       port: z.number().int().min(1).max(65535).default(3100),
       host: z.string().default("127.0.0.1"),
+      apiKey: z.string().optional(),
+      corsOrigins: z.array(z.string()).default(["http://localhost:3100"]),
+      rateLimitMax: z.number().int().min(1).default(100),
     })
-    .default({ port: 3100, host: "127.0.0.1" }),
+    .default({ port: 3100, host: "127.0.0.1", corsOrigins: ["http://localhost:3100"], rateLimitMax: 100 }),
+  engine: z
+    .object({
+      chatTimeout: z.number().int().min(1000).default(120_000),
+      retryMaxAttempts: z.number().int().min(0).default(3),
+      retryBaseDelay: z.number().int().min(100).default(1000),
+    })
+    .default({ chatTimeout: 120_000, retryMaxAttempts: 3, retryBaseDelay: 1000 }),
   skills: z.array(SkillSourceSchema).default([]),
   systemPrompt: z.string().optional(),
   telegram: TelegramConfigSchema.optional(),

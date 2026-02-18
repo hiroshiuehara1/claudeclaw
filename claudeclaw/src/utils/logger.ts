@@ -1,37 +1,61 @@
+import pino from "pino";
 import type { LogLevel } from "../core/config/schema.js";
 
-const LEVELS: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
+const PINO_LEVELS: Record<LogLevel, string> = {
+  debug: "debug",
+  info: "info",
+  warn: "warn",
+  error: "error",
 };
 
-let currentLevel: LogLevel = "info";
+const isProduction = process.env.NODE_ENV === "production";
+
+const pinoLogger = pino({
+  level: "debug",
+  transport: isProduction
+    ? undefined
+    : { target: "pino-pretty", options: { colorize: true, translateTime: "HH:MM:ss.l" } },
+  redact: {
+    paths: [
+      "anthropicApiKey",
+      "openaiApiKey",
+      "*.botToken",
+      "*.secret",
+      "*.signingSecret",
+      "*.appToken",
+      "*.apiKey",
+      "config.anthropicApiKey",
+      "config.openaiApiKey",
+    ],
+    censor: "[REDACTED]",
+  },
+});
 
 export function setLogLevel(level: LogLevel): void {
-  currentLevel = level;
+  pinoLogger.level = PINO_LEVELS[level] || "info";
 }
 
-function shouldLog(level: LogLevel): boolean {
-  return LEVELS[level] >= LEVELS[currentLevel];
-}
-
-function timestamp(): string {
-  return new Date().toISOString().slice(11, 23);
+export function createChildLogger(context: Record<string, unknown>): typeof logger {
+  const child = pinoLogger.child(context);
+  return {
+    debug(msg: string, ...args: unknown[]) { child.debug(args.length ? args[0] : {}, msg); },
+    info(msg: string, ...args: unknown[]) { child.info(args.length ? args[0] : {}, msg); },
+    warn(msg: string, ...args: unknown[]) { child.warn(args.length ? args[0] : {}, msg); },
+    error(msg: string, ...args: unknown[]) { child.error(args.length ? args[0] : {}, msg); },
+  };
 }
 
 export const logger = {
   debug(msg: string, ...args: unknown[]): void {
-    if (shouldLog("debug")) console.debug(`[${timestamp()}] DBG ${msg}`, ...args);
+    pinoLogger.debug(args.length ? args[0] : {}, msg);
   },
   info(msg: string, ...args: unknown[]): void {
-    if (shouldLog("info")) console.info(`[${timestamp()}] INF ${msg}`, ...args);
+    pinoLogger.info(args.length ? args[0] : {}, msg);
   },
   warn(msg: string, ...args: unknown[]): void {
-    if (shouldLog("warn")) console.warn(`[${timestamp()}] WRN ${msg}`, ...args);
+    pinoLogger.warn(args.length ? args[0] : {}, msg);
   },
   error(msg: string, ...args: unknown[]): void {
-    if (shouldLog("error")) console.error(`[${timestamp()}] ERR ${msg}`, ...args);
+    pinoLogger.error(args.length ? args[0] : {}, msg);
   },
 };

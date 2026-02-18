@@ -27,6 +27,8 @@ export { DiscordAdapter } from "./interfaces/chat/discord-adapter.js";
 export { SlackAdapter } from "./interfaces/chat/slack-adapter.js";
 
 // Utils
-export { logger, setLogLevel } from "./utils/logger.js";
+export { logger, setLogLevel, createChildLogger } from "./utils/logger.js";
 export { ClawError, BackendError, ConfigError, SkillError, MemoryError } from "./utils/errors.js";
 export { collectStream, mapStream } from "./utils/stream.js";
+export { LifecycleManager } from "./utils/lifecycle.js";
+export { retryWithBackoff } from "./utils/retry.js";

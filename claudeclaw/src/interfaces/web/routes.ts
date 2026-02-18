@@ -1,16 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { Engine } from "../../core/engine.js";
+import { ChatRequestSchema, WebSocketMessageSchema } from "./validation.js";
 
 export function registerRoutes(app: FastifyInstance, engine: Engine): void {
-  // Health check
-  app.get("/health", async () => ({ status: "ok" }));
-
   // One-shot chat endpoint
-  app.post<{
-    Body: { prompt: string; sessionId?: string; model?: string };
-  }>("/api/chat", async (request, reply) => {
-    const { prompt, sessionId, model } = request.body;
+  app.post("/api/chat", async (request, reply) => {
+    const parsed = ChatRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid request", details: parsed.error.issues });
+    }
+
+    const { prompt, sessionId, model } = parsed.data;
     const sid = sessionId || nanoid(12);
 
     let fullText = "";
@@ -34,7 +35,13 @@ export function registerRoutes(app: FastifyInstance, engine: Engine): void {
       socket.on("message", async (raw: Buffer) => {
         let data: { prompt: string; model?: string };
         try {
-          data = JSON.parse(raw.toString());
+          const rawData = JSON.parse(raw.toString());
+          const parsed = WebSocketMessageSchema.safeParse(rawData);
+          if (!parsed.success) {
+            socket.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+            return;
+          }
+          data = parsed.data;
         } catch {
           socket.send(JSON.stringify({ type: "error", error: "Invalid JSON" }));
           return;

@@ -32,9 +32,22 @@ export abstract class ChatPlatformAdapter implements InterfaceAdapter {
         await this.sendReply(replyTarget || sessionId, fullText);
       }
     } catch (err) {
-      logger.error(
-        `Chat adapter error: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`Chat adapter error: ${errMsg}`);
+
+      // Provide user-friendly error message
+      const isTimeout = errMsg.includes("timed out") || errMsg.includes("aborted");
+      const userMessage = isTimeout
+        ? "Sorry, the request timed out. Please try again."
+        : "Sorry, something went wrong processing your message. Please try again.";
+
+      try {
+        await this.sendReply(replyTarget || sessionId, userMessage);
+      } catch (replyErr) {
+        logger.error(
+          `Failed to send error reply: ${replyErr instanceof Error ? replyErr.message : String(replyErr)}`,
+        );
+      }
     }
   }
 }

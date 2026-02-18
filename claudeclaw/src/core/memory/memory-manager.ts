@@ -73,4 +73,9 @@ export class MemoryManager {
   async clearSession(sessionId: string): Promise<void> {
     this.store.clearSession(sessionId);
   }
+
+  async close(): Promise<void> {
+    this.store.close();
+    this.vectorStore?.close();
+  }
 }
