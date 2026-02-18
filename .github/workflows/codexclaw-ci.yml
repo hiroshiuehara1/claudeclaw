@@ -1,0 +1,96 @@
+name: codexclaw-ci
+
+on:
+  push:
+    paths:
+      - "codexclaw/**"
+      - ".github/workflows/codexclaw-ci.yml"
+  pull_request:
+    paths:
+      - "codexclaw/**"
+      - ".github/workflows/codexclaw-ci.yml"
+  workflow_dispatch:
+    inputs:
+      run_smoke:
+        description: "Run optional smoke job (requires codex and claude CLIs on runner)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codexclaw-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint_test:
+    name: lint-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codexclaw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codexclaw/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  smoke:
+    name: smoke-optional
+    needs: lint_test
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_smoke }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codexclaw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codexclaw/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check codex/claude CLI availability
+        id: cli_check
+        shell: bash
+        run: |
+          if ! command -v codex >/dev/null 2>&1; then
+            echo "codex_missing=true" >> "$GITHUB_OUTPUT"
+            echo "codex CLI missing on runner"
+          fi
+          if ! command -v claude >/dev/null 2>&1; then
+            echo "claude_missing=true" >> "$GITHUB_OUTPUT"
+            echo "claude CLI missing on runner"
+          fi
+
+      - name: Skip reason
+        if: ${{ steps.cli_check.outputs.codex_missing == 'true' || steps.cli_check.outputs.claude_missing == 'true' }}
+        run: |
+          echo "Skipping smoke: codex and/or claude CLI not available on this runner."
+
+      - name: Smoke
+        if: ${{ steps.cli_check.outputs.codex_missing != 'true' && steps.cli_check.outputs.claude_missing != 'true' }}
+        run: bash scripts/smoke.sh
