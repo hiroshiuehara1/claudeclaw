@@ -2,6 +2,16 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { ToolDefinition } from "../../backend/types.js";
 
+const allowedRoot = process.cwd();
+
+export function validatePath(inputPath: string): string | null {
+  const resolved = resolve(inputPath);
+  if (!resolved.startsWith(allowedRoot)) {
+    return `Error: Path traversal blocked — "${inputPath}" resolves outside the allowed root (${allowedRoot}).`;
+  }
+  return null;
+}
+
 export const readFileTool: ToolDefinition = {
   name: "read_file",
   description: "Read the contents of a file at the given path.",
@@ -14,6 +24,8 @@ export const readFileTool: ToolDefinition = {
   },
   async execute(input: unknown): Promise<string> {
     const { path } = input as { path: string };
+    const pathError = validatePath(path);
+    if (pathError) return pathError;
     const resolved = resolve(path);
     if (!existsSync(resolved)) return `Error: File not found: ${resolved}`;
     return readFileSync(resolved, "utf-8");
@@ -33,6 +45,8 @@ export const writeFileTool: ToolDefinition = {
   },
   async execute(input: unknown): Promise<string> {
     const { path, content } = input as { path: string; content: string };
+    const pathError = validatePath(path);
+    if (pathError) return pathError;
     const resolved = resolve(path);
     writeFileSync(resolved, content, "utf-8");
     return `Written to ${resolved}`;
@@ -51,6 +65,8 @@ export const listDirTool: ToolDefinition = {
   },
   async execute(input: unknown): Promise<string> {
     const { path } = input as { path: string };
+    const pathError = validatePath(path);
+    if (pathError) return pathError;
     const resolved = resolve(path);
     if (!existsSync(resolved)) return `Error: Directory not found: ${resolved}`;
     const entries = readdirSync(resolved, { withFileTypes: true });
