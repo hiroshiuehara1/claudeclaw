@@ -9,6 +9,8 @@ on:
     paths:
       - "codexclaw/**"
       - ".github/workflows/codexclaw-ci.yml"
+  schedule:
+    - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
       run_smoke:
@@ -56,11 +58,43 @@ jobs:
       - name: Test
         run: npm test
 
-  smoke:
-    name: smoke-self-hosted
+  smoke_manual:
+    name: smoke-self-hosted-manual
     needs: lint_test
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_smoke }}
     runs-on: ${{ fromJSON(inputs.smoke_runner_labels) }}
+    defaults:
+      run:
+        working-directory: codexclaw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: codexclaw/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Preflight backend CLIs
+        run: |
+          command -v codex
+          codex --version
+          command -v claude
+          claude --version
+
+      - name: Smoke
+        run: bash scripts/smoke.sh
+
+  smoke_nightly:
+    name: smoke-self-hosted-nightly
+    needs: lint_test
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: [self-hosted, linux, x64, codexclaw]
     defaults:
       run:
         working-directory: codexclaw
