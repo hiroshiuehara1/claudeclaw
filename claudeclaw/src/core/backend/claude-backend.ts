@@ -5,7 +5,7 @@ import type {
   BackendQueryOptions,
   ConversationMessage,
 } from "./types.js";
-import { BackendError } from "../../utils/errors.js";
+import { BackendError, RateLimitError, TimeoutError } from "../../utils/errors.js";
 import { logger } from "../../utils/logger.js";
 
 export class ClaudeBackend implements Backend {
@@ -97,6 +97,15 @@ export class ClaudeBackend implements Backend {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`Claude backend error: ${message}`);
       yield { type: "error", error: message };
+
+      // Classify error by type
+      const status = (err as any)?.status;
+      if (status === 429) {
+        throw new RateLimitError(`Claude rate limited: ${message}`, err);
+      }
+      if (message.toLowerCase().includes("timeout") || (err as any)?.code === "ETIMEDOUT") {
+        throw new TimeoutError(`Claude request timed out: ${message}`, err);
+      }
       throw new BackendError(`Claude query failed: ${message}`, err);
     } finally {
       this.abortController = null;

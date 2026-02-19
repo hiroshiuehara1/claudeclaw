@@ -179,6 +179,13 @@ export class SqliteStore {
     return result;
   }
 
+  deleteMemory(category: string, key: string): boolean {
+    const result = this.db
+      .prepare("DELETE FROM memories WHERE category = ? AND key = ?")
+      .run(category, key);
+    return result.changes > 0;
+  }
+
   close(): void {
     this.db.close();
   }

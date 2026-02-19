@@ -27,6 +27,7 @@ export interface BackendQueryOptions {
   tools?: ToolDefinition[];
   maxTokens?: number;
   signal?: AbortSignal;
+  requestId?: string;
 }
 
 export interface ConversationMessage {

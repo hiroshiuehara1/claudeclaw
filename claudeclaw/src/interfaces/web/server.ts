@@ -14,10 +14,14 @@ import { registerExportRoutes } from "./export.js";
 import { registerSecurity } from "./middleware/security.js";
 import { createAuthHook } from "./middleware/auth.js";
 import { registerHealthRoutes } from "./health.js";
+import { registerApiInfoRoutes } from "./api-info.js";
+import { registerRequestLogger } from "./middleware/request-logger.js";
 
 export class WebAdapter implements InterfaceAdapter {
   private engine!: Engine;
   private app = Fastify({ logger: false });
+  private draining = false;
+  private activeRequests = 0;
 
   async start(engine: Engine): Promise<void> {
     this.engine = engine;
@@ -31,6 +35,18 @@ export class WebAdapter implements InterfaceAdapter {
     }
 
     await this.app.register(websocket);
+
+    // Track in-flight requests for graceful draining
+    this.app.addHook("onRequest", async (_request, reply) => {
+      if (this.draining) {
+        return reply.status(503).send({ error: "Server is shutting down" });
+      }
+      this.activeRequests++;
+    });
+
+    this.app.addHook("onResponse", async () => {
+      this.activeRequests--;
+    });
 
     // Serve static web UI files
     const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -49,11 +65,13 @@ export class WebAdapter implements InterfaceAdapter {
       logger.debug(`Serving web UI from ${webRoot}`);
     }
 
+    registerRequestLogger(this.app);
     registerHealthRoutes(this.app, engine);
     registerRoutes(this.app, engine);
     registerSseRoutes(this.app, engine);
     registerSessionRoutes(this.app, engine);
     registerExportRoutes(this.app, engine);
+    registerApiInfoRoutes(this.app, engine);
 
     const { web } = engine.config;
     await this.app.listen({ port: web.port, host: web.host });
@@ -61,6 +79,29 @@ export class WebAdapter implements InterfaceAdapter {
   }
 
   async stop(): Promise<void> {
+    this.draining = true;
+    const drainTimeout = this.engine?.config.web.drainTimeout ?? 5000;
+
+    if (this.activeRequests > 0 && drainTimeout > 0) {
+      logger.info(`Draining ${this.activeRequests} active request(s)...`);
+      await this.waitForDrain(drainTimeout);
+    }
+
     await this.app.close();
+    logger.info("Web server stopped");
+  }
+
+  private waitForDrain(timeout: number): Promise<void> {
+    return new Promise((resolve) => {
+      const deadline = Date.now() + timeout;
+      const check = () => {
+        if (this.activeRequests <= 0 || Date.now() >= deadline) {
+          resolve();
+          return;
+        }
+        setTimeout(check, 100);
+      };
+      check();
+    });
   }
 }
