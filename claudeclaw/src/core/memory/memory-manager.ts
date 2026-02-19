@@ -94,6 +94,14 @@ export class MemoryManager {
     return this.store.cleanExpiredSessions(ttlHours);
   }
 
+  getMemories(category?: string) {
+    return this.store.getMemories(category);
+  }
+
+  deleteMemory(category: string, key: string): boolean {
+    return this.store.deleteMemory(category, key);
+  }
+
   async close(): Promise<void> {
     this.store.close();
     this.vectorStore?.close();

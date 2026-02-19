@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { Engine } from "../../core/engine.js";
 import { ChatRequestSchema, WebSocketMessageSchema } from "./validation.js";
+import { errorToHttpStatus, ClawError } from "../../utils/errors.js";
 
 export function registerRoutes(app: FastifyInstance, engine: Engine): void {
   // One-shot chat endpoint
@@ -14,17 +15,24 @@ export function registerRoutes(app: FastifyInstance, engine: Engine): void {
     const { prompt, sessionId, model } = parsed.data;
     const sid = sessionId || nanoid(12);
 
-    let fullText = "";
-    for await (const event of engine.chat(prompt, sid, { model })) {
-      if (event.type === "text" && event.text) {
-        fullText += event.text;
+    try {
+      let fullText = "";
+      for await (const event of engine.chat(prompt, sid, { model })) {
+        if (event.type === "text" && event.text) {
+          fullText += event.text;
+        }
+        if (event.type === "error") {
+          return reply.status(500).send({ error: event.error });
+        }
       }
-      if (event.type === "error") {
-        return reply.status(500).send({ error: event.error });
-      }
-    }
 
-    return { sessionId: sid, text: fullText };
+      return { sessionId: sid, text: fullText };
+    } catch (err) {
+      const status = errorToHttpStatus(err);
+      const message = err instanceof Error ? err.message : String(err);
+      const code = err instanceof ClawError ? err.code : "INTERNAL_ERROR";
+      return reply.status(status).send({ error: message, code });
+    }
   });
 
   // Streaming WebSocket endpoint
@@ -59,10 +67,12 @@ export function registerRoutes(app: FastifyInstance, engine: Engine): void {
             socket.send(JSON.stringify(event));
           }
         } catch (err) {
+          const code = err instanceof ClawError ? err.code : "INTERNAL_ERROR";
           socket.send(
             JSON.stringify({
               type: "error",
               error: err instanceof Error ? err.message : String(err),
+              code,
             }),
           );
         }

@@ -152,6 +152,31 @@ export class Engine {
     this.skillRegistry = sr;
   }
 
+  getAvailableModels(): { backend: string; models: string[] }[] {
+    const result: { backend: string; models: string[] }[] = [];
+    if (this.config.anthropicApiKey) {
+      result.push({
+        backend: "claude",
+        models: ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-haiku-3-20241022"],
+      });
+    }
+    if (this.config.openaiApiKey) {
+      result.push({
+        backend: "openai",
+        models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+      });
+    }
+    return result;
+  }
+
+  getAvailableTools() {
+    return this.skillRegistry?.getAllTools() || [];
+  }
+
+  getRegisteredSkills() {
+    return this.skillRegistry?.listSkills() || [];
+  }
+
   async shutdown(): Promise<void> {
     logger.info("Engine shutting down...");
     await this.skillRegistry?.shutdown();

@@ -53,8 +53,9 @@ export const ConfigSchema = z.object({
       apiKey: z.string().optional(),
       corsOrigins: z.array(z.string()).default(["http://localhost:3100"]),
       rateLimitMax: z.number().int().min(1).default(100),
+      drainTimeout: z.number().int().min(0).max(30000).default(5000),
     })
-    .default({ port: 3100, host: "127.0.0.1", corsOrigins: ["http://localhost:3100"], rateLimitMax: 100 }),
+    .default({ port: 3100, host: "127.0.0.1", corsOrigins: ["http://localhost:3100"], rateLimitMax: 100, drainTimeout: 5000 }),
   engine: z
     .object({
       chatTimeout: z.number().int().min(1000).default(120_000),

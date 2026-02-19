@@ -8,6 +8,11 @@ export type CleanupHandler = {
 export class LifecycleManager {
   private handlers: CleanupHandler[] = [];
   private shuttingDown = false;
+  private forcedExitTimeout: number;
+
+  constructor(forcedExitTimeout = 10_000) {
+    this.forcedExitTimeout = forcedExitTimeout;
+  }
 
   register(name: string, handler: () => Promise<void> | void): void {
     this.handlers.push({ name, handler });
@@ -18,6 +23,14 @@ export class LifecycleManager {
       if (this.shuttingDown) return;
       this.shuttingDown = true;
       logger.info(`Received ${signal}, shutting down gracefully...`);
+
+      // Force exit after timeout to prevent hanging
+      const forceTimer = setTimeout(() => {
+        logger.warn(`Forced exit after ${this.forcedExitTimeout}ms timeout`);
+        process.exit(1);
+      }, this.forcedExitTimeout);
+      forceTimer.unref();
+
       await this.runAll();
       process.exit(0);
     };

@@ -36,3 +36,35 @@ export class MemoryError extends ClawError {
     this.name = "MemoryError";
   }
 }
+
+export class ValidationError extends ClawError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "VALIDATION_ERROR", cause);
+    this.name = "ValidationError";
+  }
+}
+
+export class RateLimitError extends ClawError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "RATE_LIMIT_ERROR", cause);
+    this.name = "RateLimitError";
+  }
+}
+
+export class TimeoutError extends ClawError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "TIMEOUT_ERROR", cause);
+    this.name = "TimeoutError";
+  }
+}
+
+export function errorToHttpStatus(err: unknown): number {
+  if (err instanceof ValidationError) return 400;
+  if (err instanceof RateLimitError) return 429;
+  if (err instanceof TimeoutError) return 504;
+  if (err instanceof ConfigError) return 500;
+  if (err instanceof BackendError) return 502;
+  if (err instanceof SkillError) return 500;
+  if (err instanceof MemoryError) return 500;
+  return 500;
+}

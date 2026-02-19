@@ -5,6 +5,10 @@ import {
   BackendError,
   SkillError,
   MemoryError,
+  ValidationError,
+  RateLimitError,
+  TimeoutError,
+  errorToHttpStatus,
 } from "../src/utils/errors.js";
 
 describe("Error classes", () => {
@@ -42,5 +46,34 @@ describe("Error classes", () => {
     const err = new MemoryError("db fail");
     expect(err.code).toBe("MEMORY_ERROR");
     expect(err.name).toBe("MemoryError");
+  });
+
+  it("ValidationError should have correct code and extend ClawError", () => {
+    const err = new ValidationError("invalid input");
+    expect(err.code).toBe("VALIDATION_ERROR");
+    expect(err.name).toBe("ValidationError");
+    expect(err).toBeInstanceOf(ClawError);
+  });
+
+  it("RateLimitError should have correct code", () => {
+    const err = new RateLimitError("429 too many");
+    expect(err.code).toBe("RATE_LIMIT_ERROR");
+    expect(err.name).toBe("RateLimitError");
+  });
+
+  it("TimeoutError should have correct code and cause", () => {
+    const cause = new Error("ETIMEDOUT");
+    const err = new TimeoutError("timed out", cause);
+    expect(err.code).toBe("TIMEOUT_ERROR");
+    expect(err.name).toBe("TimeoutError");
+    expect(err.cause).toBe(cause);
+  });
+
+  it("errorToHttpStatus should map error types correctly", () => {
+    expect(errorToHttpStatus(new ValidationError("x"))).toBe(400);
+    expect(errorToHttpStatus(new RateLimitError("x"))).toBe(429);
+    expect(errorToHttpStatus(new TimeoutError("x"))).toBe(504);
+    expect(errorToHttpStatus(new BackendError("x"))).toBe(502);
+    expect(errorToHttpStatus(new Error("x"))).toBe(500);
   });
 });
