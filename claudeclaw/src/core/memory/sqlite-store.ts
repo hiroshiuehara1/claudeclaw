@@ -157,6 +157,28 @@ export class SqliteStore {
       .all(sessionId) as ConversationMessage[];
   }
 
+  cleanExpiredSessions(ttlHours: number): number {
+    const result = this.db.transaction(() => {
+      const expired = this.db
+        .prepare(
+          `SELECT id FROM sessions WHERE updated_at < datetime('now', '-' || ? || ' hours')`,
+        )
+        .all(ttlHours) as { id: string }[];
+
+      for (const { id } of expired) {
+        this.db.prepare("DELETE FROM messages WHERE session_id = ?").run(id);
+        this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+      }
+
+      return expired.length;
+    })();
+
+    if (result > 0) {
+      logger.info(`Cleaned ${result} expired sessions (TTL: ${ttlHours}h)`);
+    }
+    return result;
+  }
+
   close(): void {
     this.db.close();
   }

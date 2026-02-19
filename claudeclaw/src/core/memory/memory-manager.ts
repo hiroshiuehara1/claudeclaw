@@ -90,6 +90,10 @@ export class MemoryManager {
     return this.store.getAllMessages(sessionId);
   }
 
+  cleanExpiredSessions(ttlHours: number): number {
+    return this.store.cleanExpiredSessions(ttlHours);
+  }
+
   async close(): Promise<void> {
     this.store.close();
     this.vectorStore?.close();

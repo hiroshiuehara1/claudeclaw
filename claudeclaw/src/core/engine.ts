@@ -18,6 +18,8 @@ export class Engine {
   private backend: Backend;
   private memoryManager?: MemoryManager;
   private skillRegistry?: SkillRegistry;
+  private chatCount = 0;
+  private lastCleanup = 0;
 
   constructor(options: EngineOptions) {
     this.config = options.config;
@@ -117,6 +119,20 @@ export class Engine {
     // Handle "remember" commands
     if (this.memoryManager && /^remember\b/i.test(prompt)) {
       await this.memoryManager.remember(prompt.replace(/^remember\s+/i, ""));
+    }
+
+    // Periodic session cleanup (every 100 calls)
+    this.chatCount++;
+    if (this.memoryManager && this.chatCount - this.lastCleanup >= 100) {
+      this.lastCleanup = this.chatCount;
+      const ttl = this.config.engine?.sessionTtlHours ?? 168;
+      try {
+        this.memoryManager.cleanExpiredSessions(ttl);
+      } catch (err) {
+        logger.warn(
+          `Session cleanup failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
   }
 
