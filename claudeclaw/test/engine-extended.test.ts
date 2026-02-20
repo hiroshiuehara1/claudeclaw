@@ -50,6 +50,7 @@ describe("Engine with MemoryManager", () => {
       addMessage: vi.fn().mockResolvedValue(undefined),
       search: vi.fn().mockResolvedValue([]),
       remember: vi.fn().mockResolvedValue(undefined),
+      ensureSession: vi.fn(),
       clearSession: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue(undefined),
     } as unknown as MemoryManager;
@@ -77,6 +78,7 @@ describe("Engine with MemoryManager", () => {
       addMessage: vi.fn().mockResolvedValue(undefined),
       search: vi.fn().mockResolvedValue([]),
       remember: vi.fn().mockResolvedValue(undefined),
+      ensureSession: vi.fn(),
       clearSession: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue(undefined),
     } as unknown as MemoryManager;
@@ -110,6 +112,7 @@ describe("Engine with MemoryManager", () => {
         { content: "relevant fact", score: 0.9, metadata: {} },
       ]),
       remember: vi.fn(),
+      ensureSession: vi.fn(),
       clearSession: vi.fn(),
       close: vi.fn(),
     } as unknown as MemoryManager;

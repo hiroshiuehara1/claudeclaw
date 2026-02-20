@@ -23,6 +23,7 @@ export class ClaudeBackend implements Backend {
   ): AsyncGenerator<BackendEvent> {
     const model = options.model || "claude-sonnet-4-20250514";
     const messages = this.buildMessages(prompt, options.messages);
+    const maxToolRounds = options.maxToolRounds ?? 10;
 
     this.abortController = new AbortController();
 
@@ -35,57 +36,96 @@ export class ClaudeBackend implements Backend {
     try {
       logger.debug(`Claude query: model=${model}, messages=${messages.length}`);
 
-      const stream = this.client.messages.stream({
-        model,
-        max_tokens: options.maxTokens || 4096,
-        system: options.systemPrompt || "",
-        messages,
-        tools: tools?.length ? tools : undefined,
-      });
+      let currentMessages = [...messages];
+      let round = 0;
 
-      for await (const event of stream) {
-        if (this.abortController?.signal.aborted) break;
+      while (round < maxToolRounds) {
+        round++;
+        const stream = this.client.messages.stream({
+          model,
+          max_tokens: options.maxTokens || 4096,
+          system: options.systemPrompt || "",
+          messages: currentMessages,
+          tools: tools?.length ? tools : undefined,
+        });
 
-        if (event.type === "content_block_delta") {
-          const delta = event.delta;
-          if ("text" in delta && delta.text) {
-            yield { type: "text", text: delta.text };
-          }
-        } else if (event.type === "content_block_start") {
-          const block = event.content_block;
-          if (block.type === "tool_use") {
-            yield {
-              type: "tool_use",
-              toolCall: { id: block.id, name: block.name, input: {} },
-            };
-          }
-        } else if (event.type === "message_stop") {
-          // Check if we need to handle tool calls
-          const finalMessage = await stream.finalMessage();
-          for (const block of finalMessage.content) {
-            if (block.type === "tool_use" && options.tools) {
-              const tool = options.tools.find((t) => t.name === block.name);
-              if (tool) {
-                try {
-                  const result = await tool.execute(block.input);
-                  yield {
-                    type: "tool_result",
-                    toolResult: { id: block.id, output: result },
-                  };
-                } catch (err) {
-                  yield {
-                    type: "tool_result",
-                    toolResult: {
-                      id: block.id,
-                      output: String(err),
-                      isError: true,
-                    },
-                  };
-                }
-              }
+        let hasToolCalls = false;
+
+        for await (const event of stream) {
+          if (this.abortController?.signal.aborted) break;
+
+          if (event.type === "content_block_delta") {
+            const delta = event.delta;
+            if ("text" in delta && delta.text) {
+              yield { type: "text", text: delta.text };
+            }
+          } else if (event.type === "content_block_start") {
+            const block = event.content_block;
+            if (block.type === "tool_use") {
+              yield {
+                type: "tool_use",
+                toolCall: { id: block.id, name: block.name, input: {} },
+              };
             }
           }
         }
+
+        if (this.abortController?.signal.aborted) break;
+
+        // Check final message for tool calls
+        const finalMessage = await stream.finalMessage();
+        const toolUseBlocks = finalMessage.content.filter(
+          (b): b is Anthropic.ContentBlock & { type: "tool_use" } => b.type === "tool_use",
+        );
+
+        if (toolUseBlocks.length === 0 || !options.tools) {
+          break;
+        }
+
+        hasToolCalls = true;
+
+        // Execute tool calls and collect results
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+        for (const block of toolUseBlocks) {
+          const tool = options.tools.find((t) => t.name === block.name);
+          if (tool) {
+            try {
+              const result = await tool.execute(block.input);
+              yield {
+                type: "tool_result",
+                toolResult: { id: block.id, output: result },
+              };
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: result,
+              });
+            } catch (err) {
+              const errStr = String(err);
+              yield {
+                type: "tool_result",
+                toolResult: { id: block.id, output: errStr, isError: true },
+              };
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: errStr,
+                is_error: true,
+              });
+            }
+          }
+        }
+
+        if (!hasToolCalls) break;
+
+        // Append assistant message and tool results for next round
+        currentMessages = [
+          ...currentMessages,
+          { role: "assistant" as const, content: finalMessage.content },
+          { role: "user" as const, content: toolResults },
+        ];
+
+        logger.debug(`Claude tool round ${round}: ${toolUseBlocks.length} tool calls, continuing...`);
       }
 
       yield { type: "done" };

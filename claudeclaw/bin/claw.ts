@@ -15,6 +15,7 @@ import {
   removeSkill,
   scaffoldSkill,
 } from "../src/core/skill/marketplace.js";
+import { loadAllSkills } from "../src/core/skill/loader.js";
 import { setLogLevel } from "../src/utils/logger.js";
 import { LifecycleManager } from "../src/utils/lifecycle.js";
 import { validateStartup } from "../src/core/startup.js";
@@ -57,6 +58,13 @@ function createEngine(backendOverride?: BackendType) {
 
   const memoryManager = createMemoryManager(config);
   const skillRegistry = new SkillRegistry();
+
+  // Auto-load skills from config
+  if (config.skills.length > 0) {
+    loadAllSkills(config.skills, skillRegistry).catch((err) => {
+      console.warn(`Warning: Failed to load skills: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
 
   // Startup validation — warn on issues but don't prevent startup
   const validation = validateStartup(config);

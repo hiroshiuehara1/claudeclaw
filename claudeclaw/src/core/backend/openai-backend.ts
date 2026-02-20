@@ -22,7 +22,8 @@ export class OpenAIBackend implements Backend {
     options: BackendQueryOptions,
   ): AsyncGenerator<BackendEvent> {
     const model = options.model || "gpt-4o";
-    const messages = this.buildMessages(prompt, options);
+    const initialMessages = this.buildMessages(prompt, options);
+    const maxToolRounds = options.maxToolRounds ?? 10;
 
     this.abortController = new AbortController();
 
@@ -36,69 +37,114 @@ export class OpenAIBackend implements Backend {
     }));
 
     try {
-      logger.debug(`OpenAI query: model=${model}, messages=${messages.length}`);
+      logger.debug(`OpenAI query: model=${model}, messages=${initialMessages.length}`);
 
-      const stream = await this.client.chat.completions.create({
-        model,
-        messages,
-        max_tokens: options.maxTokens || 4096,
-        stream: true,
-        tools: tools?.length ? tools : undefined,
-      });
+      let currentMessages: OpenAI.ChatCompletionMessageParam[] = [...initialMessages];
+      let round = 0;
 
-      const toolCalls: Map<
-        number,
-        { id: string; name: string; args: string }
-      > = new Map();
+      while (round < maxToolRounds) {
+        round++;
 
-      for await (const chunk of stream) {
-        if (this.abortController?.signal.aborted) break;
+        const stream = await this.client.chat.completions.create({
+          model,
+          messages: currentMessages,
+          max_tokens: options.maxTokens || 4096,
+          stream: true,
+          tools: tools?.length ? tools : undefined,
+        });
 
-        const delta = chunk.choices[0]?.delta;
-        if (!delta) continue;
+        const toolCalls: Map<
+          number,
+          { id: string; name: string; args: string }
+        > = new Map();
 
-        if (delta.content) {
-          yield { type: "text", text: delta.content };
+        for await (const chunk of stream) {
+          if (this.abortController?.signal.aborted) break;
+
+          const delta = chunk.choices[0]?.delta;
+          if (!delta) continue;
+
+          if (delta.content) {
+            yield { type: "text", text: delta.content };
+          }
+
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const existing = toolCalls.get(tc.index);
+              if (existing) {
+                if (tc.function?.arguments) existing.args += tc.function.arguments;
+              } else {
+                toolCalls.set(tc.index, {
+                  id: tc.id || "",
+                  name: tc.function?.name || "",
+                  args: tc.function?.arguments || "",
+                });
+              }
+            }
+          }
         }
 
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            const existing = toolCalls.get(tc.index);
-            if (existing) {
-              if (tc.function?.arguments) existing.args += tc.function.arguments;
-            } else {
-              toolCalls.set(tc.index, {
-                id: tc.id || "",
-                name: tc.function?.name || "",
-                args: tc.function?.arguments || "",
+        if (this.abortController?.signal.aborted) break;
+
+        // No tool calls — we're done
+        if (toolCalls.size === 0 || !options.tools) {
+          break;
+        }
+
+        // Execute tool calls and build messages for next round
+        const assistantToolCalls: OpenAI.ChatCompletionMessageParam = {
+          role: "assistant",
+          tool_calls: Array.from(toolCalls.values()).map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: tc.args },
+          })),
+        };
+
+        const toolResultMessages: OpenAI.ChatCompletionToolMessageParam[] = [];
+
+        for (const [, tc] of toolCalls) {
+          yield {
+            type: "tool_use",
+            toolCall: { id: tc.id, name: tc.name, input: JSON.parse(tc.args || "{}") },
+          };
+
+          const tool = options.tools.find((t) => t.name === tc.name);
+          if (tool) {
+            try {
+              const result = await tool.execute(JSON.parse(tc.args || "{}"));
+              yield {
+                type: "tool_result",
+                toolResult: { id: tc.id, output: result },
+              };
+              toolResultMessages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                content: result,
+              });
+            } catch (err) {
+              const errStr = String(err);
+              yield {
+                type: "tool_result",
+                toolResult: { id: tc.id, output: errStr, isError: true },
+              };
+              toolResultMessages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                content: errStr,
               });
             }
           }
         }
-      }
 
-      // Execute tool calls
-      for (const [, tc] of toolCalls) {
-        yield {
-          type: "tool_use",
-          toolCall: { id: tc.id, name: tc.name, input: JSON.parse(tc.args || "{}") },
-        };
+        // Append assistant + tool results for next round
+        currentMessages = [
+          ...currentMessages,
+          assistantToolCalls,
+          ...toolResultMessages,
+        ];
 
-        const tool = options.tools?.find((t) => t.name === tc.name);
-        if (tool) {
-          try {
-            const result = await tool.execute(JSON.parse(tc.args || "{}"));
-            yield {
-              type: "tool_result",
-              toolResult: { id: tc.id, output: result },
-            };
-          } catch (err) {
-            yield {
-              type: "tool_result",
-              toolResult: { id: tc.id, output: String(err), isError: true },
-            };
-          }
-        }
+        logger.debug(`OpenAI tool round ${round}: ${toolCalls.size} tool calls, continuing...`);
       }
 
       yield { type: "done" };

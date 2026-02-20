@@ -35,4 +35,50 @@ describe("Web UI static files", () => {
     expect(html).toContain('id="messages"');
     expect(html).toContain('id="backend-select"');
   });
+
+  // New Phase 7 tests
+  it("index.html should have stop button", () => {
+    const html = readFileSync(join(webDir, "index.html"), "utf-8");
+    expect(html).toContain('id="stop-btn"');
+  });
+
+  it("index.html should have typing indicator", () => {
+    const html = readFileSync(join(webDir, "index.html"), "utf-8");
+    expect(html).toContain('id="typing-indicator"');
+  });
+
+  it("app.js should support cancel stream", () => {
+    const js = readFileSync(join(webDir, "app.js"), "utf-8");
+    expect(js).toContain("/api/chat/cancel");
+    expect(js).toContain("cancelStream");
+  });
+
+  it("app.js should pass backend to WebSocket message", () => {
+    const js = readFileSync(join(webDir, "app.js"), "utf-8");
+    expect(js).toContain("backendSelect");
+    expect(js).toContain("backend");
+  });
+
+  it("app.js should support session deletion", () => {
+    const js = readFileSync(join(webDir, "app.js"), "utf-8");
+    expect(js).toContain("deleteSession");
+    expect(js).toContain('method: "DELETE"');
+  });
+
+  it("styles.css should have stop button styles", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain("#stop-btn");
+    expect(css).toContain(".hidden");
+  });
+
+  it("styles.css should have typing indicator styles", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain(".typing-indicator");
+    expect(css).toContain("typing-bounce");
+  });
+
+  it("styles.css should have session delete button styles", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain(".session-delete");
+  });
 });

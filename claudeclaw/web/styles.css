@@ -361,6 +361,68 @@ footer {
   cursor: not-allowed;
 }
 
+/* Stop button */
+#stop-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: #e74c3c;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+#stop-btn:hover {
+  background: #c0392b;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Delete button in session list */
+.session-delete {
+  background: none;
+  border: none;
+  color: #606080;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.session-delete:hover {
+  color: #ff6b8a;
+  background: rgba(255, 107, 138, 0.1);
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 20px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: #00d2ff;
+  border-radius: 50%;
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
 /* Responsive: collapse sidebar on mobile */
 @media (max-width: 768px) {
   #sidebar-toggle {

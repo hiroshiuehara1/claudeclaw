@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import type { Engine } from "../../core/engine.js";
 import { logger } from "../../utils/logger.js";
+import { getActiveStreams } from "./routes.js";
 
 const SseQuerySchema = z.object({
   prompt: z.string().min(1).max(100_000),
@@ -20,6 +21,10 @@ export function registerSseRoutes(app: FastifyInstance, engine: Engine): void {
     const { prompt, model } = parsed.data;
     const sessionId = parsed.data.sessionId || nanoid(12);
 
+    const controller = new AbortController();
+    const activeStreams = getActiveStreams();
+    activeStreams.set(sessionId, controller);
+
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -27,8 +32,19 @@ export function registerSseRoutes(app: FastifyInstance, engine: Engine): void {
       "X-Session-Id": sessionId,
     });
 
+    // Auto-cancel on client disconnect
+    request.raw.on("close", () => {
+      controller.abort();
+      activeStreams.delete(sessionId);
+    });
+
     try {
       for await (const event of engine.chat(prompt, sessionId, { model })) {
+        if (controller.signal.aborted) {
+          const cancelEvent = JSON.stringify({ type: "done", cancelled: true });
+          reply.raw.write(`event: done\ndata: ${cancelEvent}\n\n`);
+          break;
+        }
         const data = JSON.stringify(event);
         reply.raw.write(`event: ${event.type}\ndata: ${data}\n\n`);
       }
@@ -37,6 +53,8 @@ export function registerSseRoutes(app: FastifyInstance, engine: Engine): void {
       logger.error(`SSE stream error: ${errorMsg}`);
       const errorEvent = JSON.stringify({ type: "error", error: errorMsg });
       reply.raw.write(`event: error\ndata: ${errorEvent}\n\n`);
+    } finally {
+      activeStreams.delete(sessionId);
     }
 
     reply.raw.end();

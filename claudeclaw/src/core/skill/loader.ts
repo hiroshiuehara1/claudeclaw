@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Skill } from "./types.js";
+import type { SkillRegistry } from "./registry.js";
 import type { SkillSourceSchema } from "../config/schema.js";
 import { SkillError } from "../../utils/errors.js";
 import { logger } from "../../utils/logger.js";
@@ -62,12 +63,16 @@ async function loadSkillFromDir(dir: string): Promise<Skill> {
   }
 }
 
-export async function loadAllSkills(sources: SkillSource[]): Promise<Skill[]> {
+export async function loadAllSkills(sources: SkillSource[], registry?: SkillRegistry): Promise<Skill[]> {
   const skills: Skill[] = [];
   for (const source of sources) {
     if (!source.enabled) continue;
     try {
-      skills.push(await loadSkill(source));
+      const skill = await loadSkill(source);
+      skills.push(skill);
+      if (registry) {
+        await registry.register(skill);
+      }
     } catch (err) {
       logger.warn(`Skipping skill: ${err instanceof Error ? err.message : String(err)}`);
     }
