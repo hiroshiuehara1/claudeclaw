@@ -29,7 +29,7 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
 
     try {
       let fullText = "";
-      for await (const event of engine.chat(prompt, sid, { model })) {
+      for await (const event of engine.chat(prompt, sid, { model, backend })) {
         if (controller.signal.aborted) {
           metrics?.recordRequest(backend || "unknown", Date.now() - startTime, fullText.length, "cancelled");
           return reply.status(499).send({ error: "Request cancelled" });
@@ -106,6 +106,7 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
         try {
           for await (const event of engine.chat(data.prompt, sessionId, {
             model: data.model,
+            backend: data.backend,
           })) {
             if (controller.signal.aborted) {
               socket.send(JSON.stringify({ type: "done", cancelled: true }));

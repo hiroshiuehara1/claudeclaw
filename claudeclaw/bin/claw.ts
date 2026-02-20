@@ -16,6 +16,9 @@ import {
   scaffoldSkill,
 } from "../src/core/skill/marketplace.js";
 import { loadAllSkills } from "../src/core/skill/loader.js";
+import { shellTool } from "../src/core/tools/builtin/shell.js";
+import { readFileTool, writeFileTool, listDirTool } from "../src/core/tools/builtin/file-ops.js";
+import { gitStatusTool, gitDiffTool, gitLogTool } from "../src/core/tools/builtin/git.js";
 import { setLogLevel } from "../src/utils/logger.js";
 import { LifecycleManager } from "../src/utils/lifecycle.js";
 import { validateStartup } from "../src/core/startup.js";
@@ -74,10 +77,13 @@ function createEngine(backendOverride?: BackendType) {
     }
   }
 
+  const builtinTools = [shellTool, readFileTool, writeFileTool, listDirTool, gitStatusTool, gitDiffTool, gitLogTool];
+
   return new Engine({
     config,
     memoryManager,
     skillRegistry,
+    builtinTools,
   });
 }
 

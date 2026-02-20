@@ -33,6 +33,12 @@ export { searchSkills, installSkill, removeSkill, scaffoldSkill } from "./core/s
 
 // Tools
 export { ToolRegistry } from "./core/tools/tool-registry.js";
+export { shellTool } from "./core/tools/builtin/shell.js";
+export { readFileTool, writeFileTool, listDirTool } from "./core/tools/builtin/file-ops.js";
+export { gitStatusTool, gitDiffTool, gitLogTool } from "./core/tools/builtin/git.js";
+
+// Templates
+export { PromptTemplateManager, type PromptTemplate } from "./core/templates/prompt-templates.js";
 
 // Interfaces
 export { type InterfaceAdapter, type InterfaceMessage } from "./interfaces/types.js";

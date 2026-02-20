@@ -8,12 +8,16 @@ function printHelp(): void {
   console.log("  /help     — Show this help message");
   console.log("  /clear    — Clear the screen");
   console.log("  /session  — Show current session ID");
+  console.log("  /new      — Start a new session");
   console.log("  /backend  — Show current backend info");
+  console.log("  /model    — Show available models");
+  console.log("  /tools    — List available tools");
+  console.log("  /skills   — List registered skills");
   console.log("  /quit     — Exit the chat\n");
 }
 
 export async function startRepl(engine: Engine): Promise<void> {
-  const sessionId = nanoid(12);
+  let sessionId = nanoid(12);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -44,10 +48,47 @@ export async function startRepl(engine: Engine): Promise<void> {
           case "/session":
             console.log(chalk.dim(`Session ID: ${sessionId}`));
             break;
+          case "/new":
+            sessionId = nanoid(12);
+            console.log(chalk.dim(`New session: ${sessionId}`));
+            break;
           case "/backend":
-            console.log(chalk.dim(`Backend: ${engine.config.defaultBackend}`));
+            console.log(chalk.dim(`Backend: ${engine.currentBackend}`));
             console.log(chalk.dim(`Model: ${engine.config.defaultModel || "default"}`));
             break;
+          case "/model": {
+            const models = engine.getAvailableModels();
+            if (models.length === 0) {
+              console.log(chalk.dim("No backends configured."));
+            } else {
+              for (const m of models) {
+                console.log(chalk.dim(`  ${m.backend}: ${m.models.join(", ")}`));
+              }
+            }
+            break;
+          }
+          case "/tools": {
+            const tools = engine.getAvailableTools();
+            if (tools.length === 0) {
+              console.log(chalk.dim("No tools available."));
+            } else {
+              for (const t of tools) {
+                console.log(chalk.dim(`  ${t.name} — ${t.description}`));
+              }
+            }
+            break;
+          }
+          case "/skills": {
+            const skills = engine.getRegisteredSkills();
+            if (skills.length === 0) {
+              console.log(chalk.dim("No skills registered."));
+            } else {
+              for (const s of skills) {
+                console.log(chalk.dim(`  ${s.manifest.name}@${s.manifest.version} — ${s.manifest.description}`));
+              }
+            }
+            break;
+          }
           case "/quit":
           case "/exit":
             console.log(chalk.dim("\nGoodbye!"));

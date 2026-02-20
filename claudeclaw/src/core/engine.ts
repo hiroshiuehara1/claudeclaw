@@ -12,13 +12,16 @@ export interface EngineOptions {
   backend?: Backend;
   memoryManager?: MemoryManager;
   skillRegistry?: SkillRegistry;
+  builtinTools?: ToolDefinition[];
 }
 
 export class Engine {
   readonly config: Config;
   private backend: Backend;
+  private backends: Map<string, Backend> = new Map();
   private memoryManager?: MemoryManager;
   private skillRegistry?: SkillRegistry;
+  private builtinTools: ToolDefinition[];
   private chatCount = 0;
   private lastCleanup = 0;
 
@@ -27,10 +30,26 @@ export class Engine {
     this.backend = options.backend || createBackend(options.config);
     this.memoryManager = options.memoryManager;
     this.skillRegistry = options.skillRegistry;
+    this.builtinTools = options.builtinTools || [];
+    this.backends.set(this.backend.name, this.backend);
   }
 
   get memory(): MemoryManager | undefined {
     return this.memoryManager;
+  }
+
+  get currentBackend(): string {
+    return this.backend.name;
+  }
+
+  /** Resolve the backend to use for a given request (request-scoped). */
+  private resolveBackend(name?: string): Backend {
+    if (!name) return this.backend;
+    const existing = this.backends.get(name);
+    if (existing) return existing;
+    const newBackend = createBackend(this.config, name as any);
+    this.backends.set(name, newBackend);
+    return newBackend;
   }
 
   async *chat(
@@ -41,9 +60,12 @@ export class Engine {
     const log = createChildLogger({ sessionId });
     log.debug(`Engine.chat: prompt=${prompt.slice(0, 80)}...`);
 
+    // Resolve backend for this request (request-scoped, no global mutation)
+    const requestBackend = this.resolveBackend(options.backend);
+
     // Track session metadata
     if (this.memoryManager) {
-      const backendName = this.backend.name;
+      const backendName = requestBackend.name;
       const model = options.model || this.config.defaultModel;
       this.memoryManager.ensureSession(sessionId, backendName, model, process.cwd());
     }
@@ -66,10 +88,13 @@ export class Engine {
       }
     }
 
-    // Gather tools from skill registry
+    // Gather tools from skill registry + builtins
     const tools: ToolDefinition[] = [];
     if (this.skillRegistry) {
       tools.push(...this.skillRegistry.getAllTools());
+    }
+    if (tools.length === 0 && this.builtinTools.length > 0) {
+      tools.push(...this.builtinTools);
     }
 
     // Load conversation history (with truncation)
@@ -99,17 +124,35 @@ export class Engine {
     }
 
     let fullResponse = "";
+    const maxRetries = this.config.engine?.retryMaxAttempts ?? 3;
+    const baseDelay = this.config.engine?.retryBaseDelay ?? 1000;
+    let attempt = 0;
 
     try {
-      for await (const event of this.backend.query(prompt, queryOptions)) {
-        if (abortController.signal.aborted) {
-          yield { type: "error" as const, error: "Request timed out" };
-          break;
+      // Stream events directly for real-time output.
+      // Retry only on transient errors (when the generator throws).
+      while (attempt <= maxRetries) {
+        try {
+          for await (const event of requestBackend.query(prompt, queryOptions)) {
+            if (abortController.signal.aborted) {
+              yield { type: "error" as const, error: "Request timed out" };
+              return;
+            }
+            if (event.type === "text" && event.text) {
+              fullResponse += event.text;
+            }
+            yield event;
+          }
+          break; // Success — exit retry loop
+        } catch (err) {
+          attempt++;
+          if (attempt > maxRetries) throw err;
+          const delay = baseDelay * Math.pow(2, attempt - 1);
+          log.warn(`Backend query failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          // Reset fullResponse for retry (previous partial data already yielded)
+          fullResponse = "";
         }
-        if (event.type === "text" && event.text) {
-          fullResponse += event.text;
-        }
-        yield event;
       }
     } catch (err) {
       if (abortController.signal.aborted) {
@@ -151,8 +194,24 @@ export class Engine {
     await this.backend.interrupt();
   }
 
+  /** Switch to a different backend by name. Creates it if needed. */
+  switchBackend(name: string): void {
+    const existing = this.backends.get(name);
+    if (existing) {
+      this.backend = existing;
+      return;
+    }
+
+    // Create a new backend for this name
+    const newBackend = createBackend(this.config, name as any);
+    this.backends.set(name, newBackend);
+    this.backend = newBackend;
+    logger.info(`Switched to backend: ${name}`);
+  }
+
   setBackend(backend: Backend): void {
     this.backend = backend;
+    this.backends.set(backend.name, backend);
   }
 
   setMemoryManager(mm: MemoryManager): void {
@@ -181,7 +240,9 @@ export class Engine {
   }
 
   getAvailableTools() {
-    return this.skillRegistry?.getAllTools() || [];
+    const tools = this.skillRegistry?.getAllTools() || [];
+    if (tools.length === 0) return this.builtinTools;
+    return tools;
   }
 
   getRegisteredSkills() {
