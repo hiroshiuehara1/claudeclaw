@@ -1,61 +1,58 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-// We test the REPL slash command logic by importing the module and inspecting behavior.
-// Since the REPL is interactive, we test the command parsing behavior indirectly.
+const replPath = join(process.cwd(), "src", "interfaces", "cli", "repl.ts");
 
-describe("REPL Slash Commands", () => {
-  it("should recognize /help as a valid command", () => {
-    const commands = ["/help", "/clear", "/session", "/backend", "/quit", "/exit"];
-    for (const cmd of commands) {
-      expect(cmd.startsWith("/")).toBe(true);
-    }
+describe("REPL slash commands", () => {
+  const replSource = readFileSync(replPath, "utf-8");
+
+  it("should have /help command", () => {
+    expect(replSource).toContain('case "/help"');
+    expect(replSource).toContain("printHelp()");
   });
 
-  it("should identify unknown slash commands", () => {
-    const known = new Set(["/help", "/clear", "/session", "/backend", "/quit", "/exit"]);
-    expect(known.has("/unknown")).toBe(false);
-    expect(known.has("/help")).toBe(true);
+  it("should have /clear command", () => {
+    expect(replSource).toContain('case "/clear"');
+    expect(replSource).toContain("console.clear()");
   });
 
-  it("exit and quit should terminate the REPL", () => {
-    const exitCommands = ["exit", "quit", "/quit", "/exit"];
-    for (const cmd of exitCommands) {
-      expect(
-        cmd === "exit" || cmd === "quit" || cmd === "/quit" || cmd === "/exit"
-      ).toBe(true);
-    }
+  it("should have /session command", () => {
+    expect(replSource).toContain('case "/session"');
+    expect(replSource).toContain("Session ID:");
   });
 
-  it("regular text should not be treated as a slash command", () => {
-    const inputs = ["hello", "what is 2+2?", "tell me about AI"];
-    for (const input of inputs) {
-      expect(input.startsWith("/")).toBe(false);
-    }
+  it("should have /new command", () => {
+    expect(replSource).toContain('case "/new"');
+    expect(replSource).toContain("New session:");
   });
 
-  it("/backend should display backend info from config", () => {
-    const config = {
-      defaultBackend: "claude",
-      defaultModel: "claude-sonnet-4-20250514",
-    };
-    expect(config.defaultBackend).toBe("claude");
-    expect(config.defaultModel).toBe("claude-sonnet-4-20250514");
+  it("should have /backend command", () => {
+    expect(replSource).toContain('case "/backend"');
+    expect(replSource).toContain("currentBackend");
   });
 
-  it("/session should relate to a nanoid session ID", async () => {
-    const { nanoid } = await import("nanoid");
-    const sessionId = nanoid(12);
-    expect(sessionId).toHaveLength(12);
-    expect(typeof sessionId).toBe("string");
+  it("should have /model command", () => {
+    expect(replSource).toContain('case "/model"');
+    expect(replSource).toContain("getAvailableModels");
   });
 
-  it("empty input should trigger exit behavior", () => {
-    const trimmed = "".trim();
-    expect(!trimmed).toBe(true);
+  it("should have /tools command", () => {
+    expect(replSource).toContain('case "/tools"');
+    expect(replSource).toContain("getAvailableTools");
   });
 
-  it("/clear should be recognized for console clearing", () => {
-    const cmd = "/clear";
-    expect(cmd).toBe("/clear");
+  it("should have /skills command", () => {
+    expect(replSource).toContain('case "/skills"');
+    expect(replSource).toContain("getRegisteredSkills");
+  });
+
+  it("should have /quit and /exit commands", () => {
+    expect(replSource).toContain('case "/quit"');
+    expect(replSource).toContain('case "/exit"');
+  });
+
+  it("should handle unknown commands", () => {
+    expect(replSource).toContain("Unknown command:");
   });
 });

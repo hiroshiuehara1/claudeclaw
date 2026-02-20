@@ -24,6 +24,17 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
     const sid = sessionId || nanoid(12);
     const startTime = Date.now();
 
+    // Switch backend if requested
+    if (backend) {
+      try {
+        engine.switchBackend(backend);
+      } catch (err) {
+        return reply.status(400).send({
+          error: `Failed to switch backend: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    }
+
     const controller = new AbortController();
     activeStreams.set(sid, controller);
 
@@ -97,6 +108,19 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
         // Allow client to specify sessionId
         if (data.sessionId) {
           sessionId = data.sessionId;
+        }
+
+        // Switch backend if requested
+        if (data.backend) {
+          try {
+            engine.switchBackend(data.backend);
+          } catch (err) {
+            socket.send(JSON.stringify({
+              type: "error",
+              error: `Failed to switch backend: ${err instanceof Error ? err.message : String(err)}`,
+            }));
+            return;
+          }
         }
 
         const controller = new AbortController();

@@ -6,19 +6,23 @@ import { createBackend } from "./backend/backend-factory.js";
 import { truncateHistory } from "./conversation/truncation.js";
 import { logger, createChildLogger } from "../utils/logger.js";
 import { BackendError } from "../utils/errors.js";
+import { retryWithBackoff } from "../utils/retry.js";
 
 export interface EngineOptions {
   config: Config;
   backend?: Backend;
   memoryManager?: MemoryManager;
   skillRegistry?: SkillRegistry;
+  builtinTools?: ToolDefinition[];
 }
 
 export class Engine {
   readonly config: Config;
   private backend: Backend;
+  private backends: Map<string, Backend> = new Map();
   private memoryManager?: MemoryManager;
   private skillRegistry?: SkillRegistry;
+  private builtinTools: ToolDefinition[];
   private chatCount = 0;
   private lastCleanup = 0;
 
@@ -27,10 +31,16 @@ export class Engine {
     this.backend = options.backend || createBackend(options.config);
     this.memoryManager = options.memoryManager;
     this.skillRegistry = options.skillRegistry;
+    this.builtinTools = options.builtinTools || [];
+    this.backends.set(this.backend.name, this.backend);
   }
 
   get memory(): MemoryManager | undefined {
     return this.memoryManager;
+  }
+
+  get currentBackend(): string {
+    return this.backend.name;
   }
 
   async *chat(
@@ -66,10 +76,13 @@ export class Engine {
       }
     }
 
-    // Gather tools from skill registry
+    // Gather tools from skill registry + builtins
     const tools: ToolDefinition[] = [];
     if (this.skillRegistry) {
       tools.push(...this.skillRegistry.getAllTools());
+    }
+    if (tools.length === 0 && this.builtinTools.length > 0) {
+      tools.push(...this.builtinTools);
     }
 
     // Load conversation history (with truncation)
@@ -99,13 +112,28 @@ export class Engine {
     }
 
     let fullResponse = "";
+    const maxRetries = this.config.engine?.retryMaxAttempts ?? 3;
+    const baseDelay = this.config.engine?.retryBaseDelay ?? 1000;
 
     try {
-      for await (const event of this.backend.query(prompt, queryOptions)) {
-        if (abortController.signal.aborted) {
-          yield { type: "error" as const, error: "Request timed out" };
-          break;
-        }
+      // Wrap the query in a retry for transient errors.
+      // We collect events into a buffer during retries.
+      const events: BackendEvent[] = await retryWithBackoff(
+        async () => {
+          const collected: BackendEvent[] = [];
+          for await (const event of this.backend.query(prompt, queryOptions)) {
+            if (abortController.signal.aborted) {
+              collected.push({ type: "error", error: "Request timed out" });
+              break;
+            }
+            collected.push(event);
+          }
+          return collected;
+        },
+        { maxRetries, baseDelay },
+      );
+
+      for (const event of events) {
         if (event.type === "text" && event.text) {
           fullResponse += event.text;
         }
@@ -151,8 +179,24 @@ export class Engine {
     await this.backend.interrupt();
   }
 
+  /** Switch to a different backend by name. Creates it if needed. */
+  switchBackend(name: string): void {
+    const existing = this.backends.get(name);
+    if (existing) {
+      this.backend = existing;
+      return;
+    }
+
+    // Create a new backend for this name
+    const newBackend = createBackend(this.config, name as any);
+    this.backends.set(name, newBackend);
+    this.backend = newBackend;
+    logger.info(`Switched to backend: ${name}`);
+  }
+
   setBackend(backend: Backend): void {
     this.backend = backend;
+    this.backends.set(backend.name, backend);
   }
 
   setMemoryManager(mm: MemoryManager): void {
@@ -181,7 +225,9 @@ export class Engine {
   }
 
   getAvailableTools() {
-    return this.skillRegistry?.getAllTools() || [];
+    const tools = this.skillRegistry?.getAllTools() || [];
+    if (tools.length === 0) return this.builtinTools;
+    return tools;
   }
 
   getRegisteredSkills() {
