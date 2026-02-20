@@ -7,6 +7,7 @@ import fastifyStatic from "@fastify/static";
 import type { Engine } from "../../core/engine.js";
 import type { InterfaceAdapter } from "../types.js";
 import { logger } from "../../utils/logger.js";
+import { MetricsCollector } from "../../utils/metrics.js";
 import { registerRoutes } from "./routes.js";
 import { registerSseRoutes } from "./sse.js";
 import { registerSessionRoutes } from "./sessions.js";
@@ -16,12 +17,14 @@ import { createAuthHook } from "./middleware/auth.js";
 import { registerHealthRoutes } from "./health.js";
 import { registerApiInfoRoutes } from "./api-info.js";
 import { registerRequestLogger } from "./middleware/request-logger.js";
+import { registerMetricsRoutes } from "./metrics.js";
 
 export class WebAdapter implements InterfaceAdapter {
   private engine!: Engine;
   private app = Fastify({ logger: false });
   private draining = false;
   private activeRequests = 0;
+  private metrics = new MetricsCollector();
 
   async start(engine: Engine): Promise<void> {
     this.engine = engine;
@@ -67,11 +70,12 @@ export class WebAdapter implements InterfaceAdapter {
 
     registerRequestLogger(this.app);
     registerHealthRoutes(this.app, engine);
-    registerRoutes(this.app, engine);
+    registerRoutes(this.app, engine, this.metrics);
     registerSseRoutes(this.app, engine);
     registerSessionRoutes(this.app, engine);
     registerExportRoutes(this.app, engine);
     registerApiInfoRoutes(this.app, engine);
+    registerMetricsRoutes(this.app, this.metrics);
 
     const { web } = engine.config;
     await this.app.listen({ port: web.port, host: web.host });

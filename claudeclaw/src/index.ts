@@ -43,6 +43,9 @@ export { TelegramAdapter } from "./interfaces/chat/telegram-adapter.js";
 export { DiscordAdapter } from "./interfaces/chat/discord-adapter.js";
 export { SlackAdapter } from "./interfaces/chat/slack-adapter.js";
 
+// Conversation
+export { truncateHistory } from "./core/conversation/truncation.js";
+
 // Utils
 export { logger, setLogLevel, createChildLogger } from "./utils/logger.js";
 export {
@@ -59,3 +62,4 @@ export {
 export { collectStream, mapStream } from "./utils/stream.js";
 export { LifecycleManager } from "./utils/lifecycle.js";
 export { retryWithBackoff } from "./utils/retry.js";
+export { MetricsCollector, type MetricsSnapshot } from "./utils/metrics.js";

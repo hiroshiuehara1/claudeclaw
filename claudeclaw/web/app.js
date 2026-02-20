@@ -4,16 +4,20 @@ class ChatApp {
     this.form = document.getElementById("chat-form");
     this.input = document.getElementById("chat-input");
     this.sendBtn = document.getElementById("send-btn");
+    this.stopBtn = document.getElementById("stop-btn");
     this.newSessionBtn = document.getElementById("new-session");
     this.sidebarNewBtn = document.getElementById("sidebar-new-session");
     this.sidebarToggle = document.getElementById("sidebar-toggle");
     this.exportBtn = document.getElementById("export-btn");
     this.sessionListEl = document.getElementById("session-list");
     this.sidebar = document.getElementById("sidebar");
+    this.typingIndicator = document.getElementById("typing-indicator");
+    this.backendSelect = document.getElementById("backend-select");
     this.currentResponseEl = null;
     this.currentResponseText = "";
     this.ws = null;
     this.sessionId = null;
+    this.streaming = false;
 
     // Configure marked with highlight.js
     marked.setOptions({
@@ -50,6 +54,7 @@ class ChatApp {
 
     this.ws.onclose = () => {
       this.sendBtn.disabled = true;
+      this.setStreaming(false);
       setTimeout(() => this.connect(), 2000);
     };
 
@@ -83,6 +88,35 @@ class ChatApp {
         window.open(`/api/sessions/${this.sessionId}/export?format=markdown`, "_blank");
       }
     });
+
+    this.stopBtn.addEventListener("click", () => {
+      this.cancelStream();
+    });
+  }
+
+  setStreaming(active) {
+    this.streaming = active;
+    if (active) {
+      this.sendBtn.classList.add("hidden");
+      this.stopBtn.classList.remove("hidden");
+      this.typingIndicator.classList.remove("hidden");
+    } else {
+      this.sendBtn.classList.remove("hidden");
+      this.stopBtn.classList.add("hidden");
+      this.typingIndicator.classList.add("hidden");
+    }
+  }
+
+  cancelStream() {
+    if (this.sessionId) {
+      fetch("/api/chat/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: this.sessionId }),
+      }).catch(() => {});
+    }
+    this.setStreaming(false);
+    this.finalizeResponse();
   }
 
   newSession() {
@@ -96,10 +130,12 @@ class ChatApp {
     if (!text || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const model = document.getElementById("model-input").value || undefined;
+    const backend = this.backendSelect.value || undefined;
     this.addMessage("user", text);
     this.startAssistantMessage();
+    this.setStreaming(true);
 
-    const msg = { prompt: text, model };
+    const msg = { prompt: text, model, backend };
     if (this.sessionId) msg.sessionId = this.sessionId;
     this.ws.send(JSON.stringify(msg));
     this.input.value = "";
@@ -117,9 +153,11 @@ class ChatApp {
         );
         break;
       case "done":
+        this.setStreaming(false);
         this.finalizeResponse();
         break;
       case "error":
+        this.setStreaming(false);
         this.finalizeResponse();
         this.addMessage("error", `Error: ${event.error}`);
         break;
@@ -174,7 +212,14 @@ class ChatApp {
 
   scrollToBottom() {
     const container = document.getElementById("chat-container");
-    container.scrollTop = container.scrollHeight;
+    // Only auto-scroll if user is near the bottom
+    const threshold = 100;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    if (isNearBottom) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
   }
 
   async loadSessions() {
@@ -194,9 +239,39 @@ class ChatApp {
       const li = document.createElement("li");
       li.className = "session-item";
       if (this.sessionId === s.id) li.classList.add("active");
-      li.innerHTML = `<span class="session-id">${s.id}</span><span class="session-count">${s.message_count} msgs</span>`;
-      li.addEventListener("click", () => this.loadSession(s.id));
+
+      const info = document.createElement("span");
+      info.className = "session-info";
+      info.innerHTML = `<span class="session-id">${s.id}</span><span class="session-count">${s.message_count} msgs</span>`;
+      info.addEventListener("click", () => this.loadSession(s.id));
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "session-delete";
+      deleteBtn.textContent = "\u00D7";
+      deleteBtn.title = "Delete session";
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteSession(s.id);
+      });
+
+      li.appendChild(info);
+      li.appendChild(deleteBtn);
       this.sessionListEl.appendChild(li);
+    }
+  }
+
+  async deleteSession(id) {
+    try {
+      const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        if (this.sessionId === id) {
+          this.sessionId = null;
+          this.messagesEl.innerHTML = "";
+        }
+        this.loadSessions();
+      }
+    } catch {
+      // ignore fetch errors
     }
   }
 

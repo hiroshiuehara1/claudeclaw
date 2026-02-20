@@ -3,6 +3,7 @@ import type { Backend, BackendEvent, BackendQueryOptions, ToolDefinition } from 
 import type { MemoryManager } from "./memory/memory-manager.js";
 import type { SkillRegistry } from "./skill/registry.js";
 import { createBackend } from "./backend/backend-factory.js";
+import { truncateHistory } from "./conversation/truncation.js";
 import { logger, createChildLogger } from "../utils/logger.js";
 import { BackendError } from "../utils/errors.js";
 
@@ -40,6 +41,13 @@ export class Engine {
     const log = createChildLogger({ sessionId });
     log.debug(`Engine.chat: prompt=${prompt.slice(0, 80)}...`);
 
+    // Track session metadata
+    if (this.memoryManager) {
+      const backendName = this.backend.name;
+      const model = options.model || this.config.defaultModel;
+      this.memoryManager.ensureSession(sessionId, backendName, model, process.cwd());
+    }
+
     // Build system prompt with memory context
     let systemPrompt = this.config.systemPrompt || "You are ClaudeClaw, a helpful personal AI assistant.";
 
@@ -64,10 +72,12 @@ export class Engine {
       tools.push(...this.skillRegistry.getAllTools());
     }
 
-    // Load conversation history
-    const messages = this.memoryManager
+    // Load conversation history (with truncation)
+    const maxHistoryMessages = this.config.engine?.maxHistoryMessages ?? 50;
+    const rawMessages = this.memoryManager
       ? await this.memoryManager.getHistory(sessionId)
       : options.messages || [];
+    const messages = truncateHistory(rawMessages, maxHistoryMessages);
 
     // Set up timeout via AbortController
     const timeout = this.config.engine?.chatTimeout ?? 120_000;
@@ -80,6 +90,7 @@ export class Engine {
       messages,
       tools: tools.length > 0 ? tools : options.tools,
       signal: abortController.signal,
+      maxToolRounds: this.config.engine?.maxToolRounds ?? 10,
     };
 
     // Persist user message

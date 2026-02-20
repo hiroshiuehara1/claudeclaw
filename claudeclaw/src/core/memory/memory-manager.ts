@@ -70,6 +70,10 @@ export class MemoryManager {
     }
   }
 
+  ensureSession(sessionId: string, backend?: string, model?: string, cwd?: string): void {
+    this.store.ensureSession(sessionId, backend, model, cwd);
+  }
+
   async clearSession(sessionId: string): Promise<void> {
     this.store.clearSession(sessionId);
   }
