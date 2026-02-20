@@ -24,23 +24,12 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
     const sid = sessionId || nanoid(12);
     const startTime = Date.now();
 
-    // Switch backend if requested
-    if (backend) {
-      try {
-        engine.switchBackend(backend);
-      } catch (err) {
-        return reply.status(400).send({
-          error: `Failed to switch backend: ${err instanceof Error ? err.message : String(err)}`,
-        });
-      }
-    }
-
     const controller = new AbortController();
     activeStreams.set(sid, controller);
 
     try {
       let fullText = "";
-      for await (const event of engine.chat(prompt, sid, { model })) {
+      for await (const event of engine.chat(prompt, sid, { model, backend })) {
         if (controller.signal.aborted) {
           metrics?.recordRequest(backend || "unknown", Date.now() - startTime, fullText.length, "cancelled");
           return reply.status(499).send({ error: "Request cancelled" });
@@ -110,19 +99,6 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
           sessionId = data.sessionId;
         }
 
-        // Switch backend if requested
-        if (data.backend) {
-          try {
-            engine.switchBackend(data.backend);
-          } catch (err) {
-            socket.send(JSON.stringify({
-              type: "error",
-              error: `Failed to switch backend: ${err instanceof Error ? err.message : String(err)}`,
-            }));
-            return;
-          }
-        }
-
         const controller = new AbortController();
         activeStreams.set(sessionId, controller);
         const startTime = Date.now();
@@ -130,6 +106,7 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
         try {
           for await (const event of engine.chat(data.prompt, sessionId, {
             model: data.model,
+            backend: data.backend,
           })) {
             if (controller.signal.aborted) {
               socket.send(JSON.stringify({ type: "done", cancelled: true }));

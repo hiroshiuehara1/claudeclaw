@@ -6,7 +6,6 @@ import { createBackend } from "./backend/backend-factory.js";
 import { truncateHistory } from "./conversation/truncation.js";
 import { logger, createChildLogger } from "../utils/logger.js";
 import { BackendError } from "../utils/errors.js";
-import { retryWithBackoff } from "../utils/retry.js";
 
 export interface EngineOptions {
   config: Config;
@@ -43,6 +42,16 @@ export class Engine {
     return this.backend.name;
   }
 
+  /** Resolve the backend to use for a given request (request-scoped). */
+  private resolveBackend(name?: string): Backend {
+    if (!name) return this.backend;
+    const existing = this.backends.get(name);
+    if (existing) return existing;
+    const newBackend = createBackend(this.config, name as any);
+    this.backends.set(name, newBackend);
+    return newBackend;
+  }
+
   async *chat(
     prompt: string,
     sessionId: string,
@@ -51,9 +60,12 @@ export class Engine {
     const log = createChildLogger({ sessionId });
     log.debug(`Engine.chat: prompt=${prompt.slice(0, 80)}...`);
 
+    // Resolve backend for this request (request-scoped, no global mutation)
+    const requestBackend = this.resolveBackend(options.backend);
+
     // Track session metadata
     if (this.memoryManager) {
-      const backendName = this.backend.name;
+      const backendName = requestBackend.name;
       const model = options.model || this.config.defaultModel;
       this.memoryManager.ensureSession(sessionId, backendName, model, process.cwd());
     }
@@ -114,30 +126,33 @@ export class Engine {
     let fullResponse = "";
     const maxRetries = this.config.engine?.retryMaxAttempts ?? 3;
     const baseDelay = this.config.engine?.retryBaseDelay ?? 1000;
+    let attempt = 0;
 
     try {
-      // Wrap the query in a retry for transient errors.
-      // We collect events into a buffer during retries.
-      const events: BackendEvent[] = await retryWithBackoff(
-        async () => {
-          const collected: BackendEvent[] = [];
-          for await (const event of this.backend.query(prompt, queryOptions)) {
+      // Stream events directly for real-time output.
+      // Retry only on transient errors (when the generator throws).
+      while (attempt <= maxRetries) {
+        try {
+          for await (const event of requestBackend.query(prompt, queryOptions)) {
             if (abortController.signal.aborted) {
-              collected.push({ type: "error", error: "Request timed out" });
-              break;
+              yield { type: "error" as const, error: "Request timed out" };
+              return;
             }
-            collected.push(event);
+            if (event.type === "text" && event.text) {
+              fullResponse += event.text;
+            }
+            yield event;
           }
-          return collected;
-        },
-        { maxRetries, baseDelay },
-      );
-
-      for (const event of events) {
-        if (event.type === "text" && event.text) {
-          fullResponse += event.text;
+          break; // Success — exit retry loop
+        } catch (err) {
+          attempt++;
+          if (attempt > maxRetries) throw err;
+          const delay = baseDelay * Math.pow(2, attempt - 1);
+          log.warn(`Backend query failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          // Reset fullResponse for retry (previous partial data already yielded)
+          fullResponse = "";
         }
-        yield event;
       }
     } catch (err) {
       if (abortController.signal.aborted) {

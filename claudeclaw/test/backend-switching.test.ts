@@ -118,4 +118,56 @@ describe("Engine backend switching", () => {
     expect(tools).toHaveLength(1);
     expect(tools[0].name).toBe("my_tool");
   });
+
+  it("should use request-scoped backend via options.backend", async () => {
+    let usedBackend = "";
+    const defaultBackend: Backend = {
+      name: "default",
+      async *query() {
+        usedBackend = "default";
+        yield { type: "text" as const, text: "from default" };
+        yield { type: "done" as const };
+      },
+      async interrupt() {},
+    };
+    const altBackend: Backend = {
+      name: "alt",
+      async *query() {
+        usedBackend = "alt";
+        yield { type: "text" as const, text: "from alt" };
+        yield { type: "done" as const };
+      },
+      async interrupt() {},
+    };
+
+    const engine = new Engine({ config: baseConfig, backend: defaultBackend });
+    engine.setBackend(altBackend);
+    // Switch back to default so it's the "current" one
+    engine.switchBackend("default");
+
+    // Use request-scoped backend override
+    await collectStream(engine.chat("test", "s-scoped", { backend: "alt" }));
+    expect(usedBackend).toBe("alt");
+    // Engine's default should not have changed
+    expect(engine.currentBackend).toBe("default");
+  });
+
+  it("should stream events incrementally (not buffer)", async () => {
+    const yielded: string[] = [];
+    const backend: Backend = {
+      name: "stream-test",
+      async *query() {
+        yield { type: "text" as const, text: "chunk1" };
+        yield { type: "text" as const, text: "chunk2" };
+        yield { type: "done" as const };
+      },
+      async interrupt() {},
+    };
+
+    const engine = new Engine({ config: baseConfig, backend });
+    for await (const event of engine.chat("test", "s-stream")) {
+      if (event.type === "text") yielded.push(event.text!);
+    }
+    expect(yielded).toEqual(["chunk1", "chunk2"]);
+  });
 });

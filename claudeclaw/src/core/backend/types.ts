@@ -29,6 +29,8 @@ export interface BackendQueryOptions {
   signal?: AbortSignal;
   requestId?: string;
   maxToolRounds?: number;
+  /** Override backend for this request (request-scoped, doesn't mutate engine state) */
+  backend?: string;
 }
 
 export interface ConversationMessage {
