@@ -15,6 +15,8 @@ function createMockEngine(opts: { withMemory?: boolean; memoryFails?: boolean } 
     },
   };
 
+  mock.getCircuitBreakerStates = () => ({});
+
   if (opts.withMemory) {
     mock.memory = {
       listSessions: () => {

@@ -46,6 +46,7 @@ export function registerHealthRoutes(app: FastifyInstance, engine: Engine): void
       database: {
         connected: dbConnected,
       },
+      circuitBreakers: engine.getCircuitBreakerStates(),
     };
   });
 

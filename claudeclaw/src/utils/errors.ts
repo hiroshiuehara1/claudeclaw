@@ -58,7 +58,15 @@ export class TimeoutError extends ClawError {
   }
 }
 
+export class CircuitOpenError extends ClawError {
+  constructor(message: string, cause?: unknown) {
+    super(message, "CIRCUIT_OPEN", cause);
+    this.name = "CircuitOpenError";
+  }
+}
+
 export function errorToHttpStatus(err: unknown): number {
+  if (err instanceof CircuitOpenError) return 503;
   if (err instanceof ValidationError) return 400;
   if (err instanceof RateLimitError) return 429;
   if (err instanceof TimeoutError) return 504;

@@ -64,8 +64,13 @@ export const ConfigSchema = z.object({
       sessionTtlHours: z.number().int().min(1).default(168),
       maxToolRounds: z.number().int().min(1).max(25).default(10),
       maxHistoryMessages: z.number().int().min(5).max(500).default(50),
+      cache: z.object({
+        enabled: z.boolean().default(false),
+        maxEntries: z.number().int().min(1).default(100),
+        ttlMs: z.number().int().min(1000).default(300_000),
+      }).default({ enabled: false, maxEntries: 100, ttlMs: 300_000 }),
     })
-    .default({ chatTimeout: 120_000, retryMaxAttempts: 3, retryBaseDelay: 1000, sessionTtlHours: 168, maxToolRounds: 10, maxHistoryMessages: 50 }),
+    .default({ chatTimeout: 120_000, retryMaxAttempts: 3, retryBaseDelay: 1000, sessionTtlHours: 168, maxToolRounds: 10, maxHistoryMessages: 50, cache: { enabled: false, maxEntries: 100, ttlMs: 300_000 } }),
   skills: z.array(SkillSourceSchema).default([]),
   systemPrompt: z.string().optional(),
   telegram: TelegramConfigSchema.optional(),

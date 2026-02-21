@@ -6,6 +6,10 @@ export { loadConfig } from "./core/config/config.js";
 export { ConfigSchema, type Config, type BackendType } from "./core/config/schema.js";
 export { type Backend, type BackendEvent, type BackendQueryOptions } from "./core/backend/types.js";
 export { createBackend } from "./core/backend/backend-factory.js";
+export { CircuitBreaker, type CircuitState, type CircuitBreakerOptions } from "./core/backend/circuit-breaker.js";
+
+// Cache
+export { ResponseCache, type CacheEntry, type ResponseCacheOptions } from "./core/cache/response-cache.js";
 export { validateStartup, type StartupValidation } from "./core/startup.js";
 export {
   getConfigPath,
@@ -63,6 +67,7 @@ export {
   ValidationError,
   RateLimitError,
   TimeoutError,
+  CircuitOpenError,
   errorToHttpStatus,
 } from "./utils/errors.js";
 export { collectStream, mapStream } from "./utils/stream.js";

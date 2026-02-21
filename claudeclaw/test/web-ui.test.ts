@@ -36,7 +36,7 @@ describe("Web UI static files", () => {
     expect(html).toContain('id="backend-select"');
   });
 
-  // New Phase 7 tests
+  // Phase 7 tests
   it("index.html should have stop button", () => {
     const html = readFileSync(join(webDir, "index.html"), "utf-8");
     expect(html).toContain('id="stop-btn"');
@@ -80,5 +80,47 @@ describe("Web UI static files", () => {
   it("styles.css should have session delete button styles", () => {
     const css = readFileSync(join(webDir, "styles.css"), "utf-8");
     expect(css).toContain(".session-delete");
+  });
+
+  // Phase 9 tests
+  it("index.html should have session search input", () => {
+    const html = readFileSync(join(webDir, "index.html"), "utf-8");
+    expect(html).toContain('id="session-search"');
+  });
+
+  it("index.html should have theme toggle button", () => {
+    const html = readFileSync(join(webDir, "index.html"), "utf-8");
+    expect(html).toContain('id="theme-toggle"');
+  });
+
+  it("app.js should support session search filtering", () => {
+    const js = readFileSync(join(webDir, "app.js"), "utf-8");
+    expect(js).toContain("filterSessions");
+    expect(js).toContain("sessionSearch");
+  });
+
+  it("app.js should support theme toggle with localStorage", () => {
+    const js = readFileSync(join(webDir, "app.js"), "utf-8");
+    expect(js).toContain("toggleTheme");
+    expect(js).toContain("localStorage");
+    expect(js).toContain("data-theme");
+  });
+
+  it("styles.css should use CSS custom properties", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain(":root");
+    expect(css).toContain("--bg-primary");
+    expect(css).toContain("--text-primary");
+    expect(css).toContain("--accent");
+  });
+
+  it("styles.css should have light theme variant", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain('[data-theme="light"]');
+  });
+
+  it("styles.css should have session search styles", () => {
+    const css = readFileSync(join(webDir, "styles.css"), "utf-8");
+    expect(css).toContain("#session-search");
   });
 });

@@ -28,6 +28,7 @@ import {
   writeConfigValue,
   redactConfig,
 } from "../src/core/config/config-writer.js";
+import { PromptTemplateManager } from "../src/core/templates/prompt-templates.js";
 import type { BackendType, Config } from "../src/core/config/schema.js";
 import type { InterfaceAdapter } from "../src/interfaces/types.js";
 
@@ -104,11 +105,12 @@ program
   .command("chat")
   .description("Start an interactive chat session")
   .option("-b, --backend <type>", "Backend to use (claude | openai)")
-  .action(async (opts: { backend?: string }) => {
+  .option("-s, --session <id>", "Resume a previous session by ID")
+  .action(async (opts: { backend?: string; session?: string }) => {
     const engine = createEngine(opts.backend as BackendType | undefined);
     const cli = new CliAdapter();
     await cli.start(engine);
-    await cli.startChat();
+    await cli.startChat(opts.session);
   });
 
 program
@@ -391,6 +393,101 @@ skillCmd
   .description("Scaffold a new skill project")
   .action((name: string) => {
     scaffoldSkill(name);
+  });
+
+// --- Template commands ---
+
+const templateCmd = program.command("template").description("Manage prompt templates");
+
+templateCmd
+  .command("list")
+  .description("List all prompt templates")
+  .action(() => {
+    const config = loadConfig();
+    const manager = new PromptTemplateManager(config.dataDir || undefined);
+    const templates = manager.list();
+    if (templates.length === 0) {
+      console.log("No templates found.");
+    } else {
+      for (const t of templates) {
+        console.log(`  ${t.name} — ${t.description}`);
+      }
+    }
+  });
+
+templateCmd
+  .command("show <name>")
+  .description("Show template details")
+  .action((name: string) => {
+    const config = loadConfig();
+    const manager = new PromptTemplateManager(config.dataDir || undefined);
+    const template = manager.get(name);
+    if (!template) {
+      console.error(`Template not found: ${name}`);
+      process.exit(1);
+    }
+    console.log(`Name: ${template.name}`);
+    console.log(`Description: ${template.description}`);
+    console.log(`Template:\n${template.template}`);
+  });
+
+templateCmd
+  .command("apply <name> <input>")
+  .description("Apply a template to input text")
+  .action((name: string, input: string) => {
+    const config = loadConfig();
+    const manager = new PromptTemplateManager(config.dataDir || undefined);
+    const result = manager.apply(name, input);
+    if (result === null) {
+      console.error(`Template not found: ${name}`);
+      process.exit(1);
+    }
+    console.log(result);
+  });
+
+templateCmd
+  .command("add <name> <description> <template>")
+  .description("Add a custom template")
+  .action((name: string, description: string, template: string) => {
+    const config = loadConfig();
+    const manager = new PromptTemplateManager(config.dataDir || undefined);
+    manager.add({ name, description, template });
+    if (config.dataDir) {
+      manager.save(config.dataDir);
+    }
+    console.log(`Added template: ${name}`);
+  });
+
+templateCmd
+  .command("remove <name>")
+  .description("Remove a custom template")
+  .action((name: string) => {
+    const config = loadConfig();
+    const manager = new PromptTemplateManager(config.dataDir || undefined);
+    const builtinNames = ["code-review", "explain", "refactor", "test", "summarize"];
+    if (builtinNames.includes(name)) {
+      console.error(`Cannot remove builtin template: ${name}`);
+      process.exit(1);
+    }
+    const template = manager.get(name);
+    if (!template) {
+      console.error(`Template not found: ${name}`);
+      process.exit(1);
+    }
+    // Remove by re-creating without the template
+    const newManager = new PromptTemplateManager(config.dataDir || undefined);
+    // Re-add all except the one to remove
+    const remaining = newManager.list().filter((t) => t.name !== name);
+    const freshManager = new PromptTemplateManager();
+    for (const t of remaining) {
+      if (!builtinNames.includes(t.name)) {
+        freshManager.add(t);
+      }
+    }
+    if (config.dataDir) {
+      freshManager.save(config.dataDir);
+    }
+    console.log(`Removed template: ${name}`);
   });
 
 program.parse();

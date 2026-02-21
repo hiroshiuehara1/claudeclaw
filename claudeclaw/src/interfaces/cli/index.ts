@@ -40,7 +40,7 @@ export class CliAdapter implements InterfaceAdapter {
     }
   }
 
-  async startChat(): Promise<void> {
-    await startRepl(this.engine);
+  async startChat(sessionId?: string): Promise<void> {
+    await startRepl(this.engine, sessionId);
   }
 }

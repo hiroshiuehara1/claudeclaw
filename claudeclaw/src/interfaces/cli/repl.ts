@@ -16,8 +16,8 @@ function printHelp(): void {
   console.log("  /quit     — Exit the chat\n");
 }
 
-export async function startRepl(engine: Engine): Promise<void> {
-  let sessionId = nanoid(12);
+export async function startRepl(engine: Engine, resumeSessionId?: string): Promise<void> {
+  let sessionId = resumeSessionId || nanoid(12);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -25,6 +25,24 @@ export async function startRepl(engine: Engine): Promise<void> {
 
   console.log(chalk.bold.cyan("\n🐾 ClaudeClaw Interactive Chat"));
   console.log(chalk.dim(`Session: ${sessionId}`));
+
+  // Display last messages if resuming a session
+  if (resumeSessionId && engine.memory) {
+    const messages = engine.memory.getAllMessages(resumeSessionId);
+    if (messages.length > 0) {
+      const recent = messages.slice(-10);
+      console.log(chalk.dim(`\n--- Resuming session (last ${recent.length} messages) ---\n`));
+      for (const msg of recent) {
+        if (msg.role === "user") {
+          console.log(chalk.green(`you> `) + msg.content);
+        } else {
+          console.log(chalk.blue(`claw> `) + msg.content.slice(0, 200) + (msg.content.length > 200 ? "..." : ""));
+        }
+      }
+      console.log(chalk.dim("\n--- End of history ---\n"));
+    }
+  }
+
   console.log(chalk.dim('Type "/help" for commands, "exit" or Ctrl+C to quit.\n'));
 
   const prompt = () => {
