@@ -13,11 +13,14 @@ class ChatApp {
     this.sidebar = document.getElementById("sidebar");
     this.typingIndicator = document.getElementById("typing-indicator");
     this.backendSelect = document.getElementById("backend-select");
+    this.themeToggle = document.getElementById("theme-toggle");
+    this.sessionSearch = document.getElementById("session-search");
     this.currentResponseEl = null;
     this.currentResponseText = "";
     this.ws = null;
     this.sessionId = null;
     this.streaming = false;
+    this.allSessions = [];
 
     // Configure marked with highlight.js
     marked.setOptions({
@@ -30,10 +33,41 @@ class ChatApp {
       breaks: true,
     });
 
+    this.loadTheme();
     this.connect();
     this.bindEvents();
     this.loadSessions();
   }
+
+  // --- Theme ---
+
+  loadTheme() {
+    const saved = localStorage.getItem("claw-theme");
+    if (saved) {
+      document.documentElement.setAttribute("data-theme", saved);
+    }
+    this.updateThemeIcon();
+  }
+
+  toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "light" ? "dark" : "light";
+    if (next === "dark") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", next);
+    }
+    localStorage.setItem("claw-theme", next);
+    this.updateThemeIcon();
+  }
+
+  updateThemeIcon() {
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    this.themeToggle.innerHTML = isLight ? "&#9790;" : "&#9728;";
+    this.themeToggle.title = isLight ? "Switch to dark mode" : "Switch to light mode";
+  }
+
+  // --- Connection ---
 
   connect() {
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -92,7 +126,33 @@ class ChatApp {
     this.stopBtn.addEventListener("click", () => {
       this.cancelStream();
     });
+
+    this.themeToggle.addEventListener("click", () => {
+      this.toggleTheme();
+    });
+
+    this.sessionSearch.addEventListener("input", () => {
+      this.filterSessions();
+    });
   }
+
+  // --- Session search ---
+
+  filterSessions() {
+    const query = this.sessionSearch.value.trim().toLowerCase();
+    if (!query) {
+      this.renderSessionList(this.allSessions);
+      return;
+    }
+    const filtered = this.allSessions.filter((s) =>
+      s.id.toLowerCase().includes(query) ||
+      (s.backend && s.backend.toLowerCase().includes(query)) ||
+      (s.model && s.model.toLowerCase().includes(query))
+    );
+    this.renderSessionList(filtered);
+  }
+
+  // --- Streaming ---
 
   setStreaming(active) {
     this.streaming = active;
@@ -227,7 +287,8 @@ class ChatApp {
       const res = await fetch("/api/sessions");
       if (!res.ok) return;
       const data = await res.json();
-      this.renderSessionList(data.sessions || []);
+      this.allSessions = data.sessions || [];
+      this.filterSessions();
     } catch {
       // ignore fetch errors
     }

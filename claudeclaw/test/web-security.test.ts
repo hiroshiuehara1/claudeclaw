@@ -27,6 +27,7 @@ function createMockEngine(): Engine {
       yield { type: "text", text: "Hello" };
       yield { type: "done" };
     },
+    getCircuitBreakerStates() { return {}; },
   } as unknown as Engine;
 }
 

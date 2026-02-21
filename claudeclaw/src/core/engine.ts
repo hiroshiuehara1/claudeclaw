@@ -3,9 +3,11 @@ import type { Backend, BackendEvent, BackendQueryOptions, ToolDefinition } from 
 import type { MemoryManager } from "./memory/memory-manager.js";
 import type { SkillRegistry } from "./skill/registry.js";
 import { createBackend } from "./backend/backend-factory.js";
+import { CircuitBreaker } from "./backend/circuit-breaker.js";
+import { ResponseCache } from "./cache/response-cache.js";
 import { truncateHistory } from "./conversation/truncation.js";
 import { logger, createChildLogger } from "../utils/logger.js";
-import { BackendError } from "../utils/errors.js";
+import { BackendError, CircuitOpenError } from "../utils/errors.js";
 
 export interface EngineOptions {
   config: Config;
@@ -22,6 +24,8 @@ export class Engine {
   private memoryManager?: MemoryManager;
   private skillRegistry?: SkillRegistry;
   private builtinTools: ToolDefinition[];
+  private breakers: Map<string, CircuitBreaker> = new Map();
+  private responseCache?: ResponseCache;
   private chatCount = 0;
   private lastCleanup = 0;
 
@@ -32,6 +36,12 @@ export class Engine {
     this.skillRegistry = options.skillRegistry;
     this.builtinTools = options.builtinTools || [];
     this.backends.set(this.backend.name, this.backend);
+    if (this.config.engine?.cache?.enabled) {
+      this.responseCache = new ResponseCache({
+        maxEntries: this.config.engine.cache.maxEntries,
+        ttlMs: this.config.engine.cache.ttlMs,
+      });
+    }
   }
 
   get memory(): MemoryManager | undefined {
@@ -40,6 +50,25 @@ export class Engine {
 
   get currentBackend(): string {
     return this.backend.name;
+  }
+
+  /** Get or create a circuit breaker for a given backend name. */
+  private getBreaker(name: string): CircuitBreaker {
+    let breaker = this.breakers.get(name);
+    if (!breaker) {
+      breaker = new CircuitBreaker();
+      this.breakers.set(name, breaker);
+    }
+    return breaker;
+  }
+
+  /** Get circuit breaker states for all backends (used by /health). */
+  getCircuitBreakerStates(): Record<string, { state: string; failures: number }> {
+    const result: Record<string, { state: string; failures: number }> = {};
+    for (const [name, breaker] of this.breakers) {
+      result[name] = { state: breaker.getState(), failures: breaker.getFailureCount() };
+    }
+    return result;
   }
 
   /** Resolve the backend to use for a given request (request-scoped). */
@@ -123,10 +152,40 @@ export class Engine {
       await this.memoryManager.addMessage(sessionId, "user", prompt);
     }
 
+    // Check response cache
+    const cacheKey = this.responseCache && !options.skipCache
+      ? ResponseCache.buildKey(requestBackend.name, options.model || this.config.defaultModel || "", prompt)
+      : null;
+
+    if (cacheKey && this.responseCache) {
+      const cached = this.responseCache.get(cacheKey);
+      if (cached) {
+        log.debug("Cache hit — returning cached response");
+        let cachedText = "";
+        for (const event of cached) {
+          if (event.type === "text" && event.text) cachedText += event.text;
+          yield event;
+        }
+        if (this.memoryManager && cachedText) {
+          await this.memoryManager.addMessage(sessionId, "assistant", cachedText);
+        }
+        return;
+      }
+    }
+
     let fullResponse = "";
+    const collectedEvents: BackendEvent[] = [];
     const maxRetries = this.config.engine?.retryMaxAttempts ?? 3;
     const baseDelay = this.config.engine?.retryBaseDelay ?? 1000;
     let attempt = 0;
+
+    const breaker = this.getBreaker(requestBackend.name);
+
+    // Check circuit breaker before attempting
+    if (breaker.getState() === "open") {
+      yield { type: "error" as const, error: "Circuit breaker is open — backend unavailable" };
+      return;
+    }
 
     try {
       // Stream events directly for real-time output.
@@ -141,17 +200,22 @@ export class Engine {
             if (event.type === "text" && event.text) {
               fullResponse += event.text;
             }
+            collectedEvents.push(event);
             yield event;
           }
+          breaker.reset();
           break; // Success — exit retry loop
         } catch (err) {
           attempt++;
+          // Record failure in circuit breaker
+          try { await breaker.execute(async () => { throw err; }); } catch { /* expected */ }
           if (attempt > maxRetries) throw err;
           const delay = baseDelay * Math.pow(2, attempt - 1);
           log.warn(`Backend query failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
           // Reset fullResponse for retry (previous partial data already yielded)
           fullResponse = "";
+          collectedEvents.length = 0;
         }
       }
     } catch (err) {
@@ -163,6 +227,11 @@ export class Engine {
       throw err;
     } finally {
       clearTimeout(timer);
+    }
+
+    // Store in cache
+    if (cacheKey && this.responseCache && collectedEvents.length > 0) {
+      this.responseCache.set(cacheKey, collectedEvents);
     }
 
     // Persist assistant response

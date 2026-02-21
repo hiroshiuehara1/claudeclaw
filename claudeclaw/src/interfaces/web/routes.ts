@@ -23,6 +23,8 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
     const { prompt, sessionId, model, backend } = parsed.data;
     const sid = sessionId || nanoid(12);
     const startTime = Date.now();
+    const reqBackend = backend || "unknown";
+    const reqModel = model || "default";
 
     const controller = new AbortController();
     activeStreams.set(sid, controller);
@@ -31,25 +33,25 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
       let fullText = "";
       for await (const event of engine.chat(prompt, sid, { model, backend })) {
         if (controller.signal.aborted) {
-          metrics?.recordRequest(backend || "unknown", Date.now() - startTime, fullText.length, "cancelled");
+          metrics?.recordRequest(reqBackend, reqModel, Date.now() - startTime, fullText.length, "cancelled");
           return reply.status(499).send({ error: "Request cancelled" });
         }
         if (event.type === "text" && event.text) {
           fullText += event.text;
         }
         if (event.type === "error") {
-          metrics?.recordRequest(backend || "unknown", Date.now() - startTime, 0, event.error);
+          metrics?.recordRequest(reqBackend, reqModel, Date.now() - startTime, 0, event.error);
           return reply.status(500).send({ error: event.error });
         }
       }
 
-      metrics?.recordRequest(backend || "unknown", Date.now() - startTime, fullText.length);
+      metrics?.recordRequest(reqBackend, reqModel, Date.now() - startTime, fullText.length);
       return { sessionId: sid, text: fullText };
     } catch (err) {
       const status = errorToHttpStatus(err);
       const message = err instanceof Error ? err.message : String(err);
       const code = err instanceof ClawError ? err.code : "INTERNAL_ERROR";
-      metrics?.recordRequest(backend || "unknown", Date.now() - startTime, 0, message);
+      metrics?.recordRequest(reqBackend, reqModel, Date.now() - startTime, 0, message);
       return reply.status(status).send({ error: message, code });
     } finally {
       activeStreams.delete(sid);
@@ -114,7 +116,7 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
             }
             socket.send(JSON.stringify(event));
           }
-          metrics?.recordRequest(data.backend || "unknown", Date.now() - startTime, 0);
+          metrics?.recordRequest(data.backend || "unknown", data.model || "default", Date.now() - startTime, 0);
         } catch (err) {
           const code = err instanceof ClawError ? err.code : "INTERNAL_ERROR";
           const message = err instanceof Error ? err.message : String(err);
@@ -125,7 +127,7 @@ export function registerRoutes(app: FastifyInstance, engine: Engine, metrics?: M
               code,
             }),
           );
-          metrics?.recordRequest(data.backend || "unknown", Date.now() - startTime, 0, message);
+          metrics?.recordRequest(data.backend || "unknown", data.model || "default", Date.now() - startTime, 0, message);
         } finally {
           activeStreams.delete(sessionId);
         }

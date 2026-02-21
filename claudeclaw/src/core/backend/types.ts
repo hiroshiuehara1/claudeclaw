@@ -31,6 +31,8 @@ export interface BackendQueryOptions {
   maxToolRounds?: number;
   /** Override backend for this request (request-scoped, doesn't mutate engine state) */
   backend?: string;
+  /** Skip response cache for this request */
+  skipCache?: boolean;
 }
 
 export interface ConversationMessage {
